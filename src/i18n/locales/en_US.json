@@ -144,8 +144,7 @@
                 "remember_window_size": "Remember Window Size",
                 "close_on_blur": "Close on Blur",
                 "always_on_top": "Always on Top",
-                "hide_source": "Hide Source",
-                "hide_language": "Hide Language Bar",
+                "hide_citation_text": "Hide Citation Text",
                 "hide_window": "Hide Window",
                 "test_open": "Test Open Window"
             },

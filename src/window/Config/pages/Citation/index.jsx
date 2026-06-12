@@ -17,8 +17,7 @@ export default function Citation() {
     const [rememberWindowSize, setRememberWindowSize] = useConfig('citation_remember_window_size', false);
     const [closeOnBlur, setCloseOnBlur] = useConfig('citation_close_on_blur', true);
     const [alwaysOnTop, setAlwaysOnTop] = useConfig('citation_always_on_top', false);
-    const [hideSource, setHideSource] = useConfig('citation_hide_source', false);
-    const [hideLanguage, setHideLanguage] = useConfig('citation_hide_language', false);
+    const [hideCitationText, setHideCitationText] = useConfig('citation_hide_citation_text', false);
     const [hideWindow, setHideWindow] = useConfig('citation_hide_window', false);
     const { t } = useTranslation();
 
@@ -79,23 +78,12 @@ export default function Citation() {
                     )}
                 </div>
                 <div className='config-item'>
-                    <h3 className='my-auto mx-0'>{t('config.citation.hide_source')}</h3>
-                    {hideSource !== null && (
+                    <h3 className='my-auto mx-0'>{t('config.citation.hide_citation_text')}</h3>
+                    {hideCitationText !== null && (
                         <Switch
-                            isSelected={hideSource}
+                            isSelected={hideCitationText}
                             onValueChange={(v) => {
-                                setHideSource(v);
-                            }}
-                        />
-                    )}
-                </div>
-                <div className='config-item'>
-                    <h3 className='my-auto mx-0'>{t('config.citation.hide_language')}</h3>
-                    {hideLanguage !== null && (
-                        <Switch
-                            isSelected={hideLanguage}
-                            onValueChange={(v) => {
-                                setHideLanguage(v);
+                                setHideCitationText(v);
                             }}
                         />
                     )}

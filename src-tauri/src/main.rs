@@ -41,6 +41,7 @@ use tauri_plugin_log::LogTarget;
 use tray::*;
 use updater::check_update;
 use window::config_window;
+use window::get_citation_state;
 use window::open_citation_window;
 use window::updater_window;
 
@@ -49,6 +50,9 @@ pub static APP: OnceCell<tauri::AppHandle> = OnceCell::new();
 
 // Text to be translated
 pub struct StringWrapper(pub Mutex<String>);
+
+// Citation text for paper search
+pub struct CitationTextWrapper(pub Mutex<String>);
 
 fn main() {
     tauri::Builder::default()
@@ -94,6 +98,7 @@ fn main() {
                 config_window();
             }
             app.manage(StringWrapper(Mutex::new("".to_string())));
+            app.manage(CitationTextWrapper(Mutex::new("".to_string())));
             // Update Tray Menu
             update_tray(app.app_handle(), "".to_string(), "".to_string());
             // Start http server
@@ -158,7 +163,8 @@ fn main() {
             font_list,
             aliyun,
             open_citation_window,
-            citation_search
+            citation_search,
+            get_citation_state
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

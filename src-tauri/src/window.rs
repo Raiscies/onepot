@@ -2,6 +2,9 @@
 
 use crate::config::get;
 use crate::config::set;
+use crate::citation_parse::split_citations;
+use crate::paper::ParseResult;
+use crate::CitationTextWrapper;
 use crate::StringWrapper;
 use crate::APP;
 // use dirs::cache_dir;
@@ -408,6 +411,74 @@ pub fn updater_window() {
         .unwrap();
     window.set_size(tauri::LogicalSize::new(600, 400)).unwrap();
     window.center().unwrap();
+}
+
+/// Hotkey handler: capture selected text, split citations, push placeholders.
+pub fn citation_selection() {
+    use selection::get_text;
+
+    let text = get_text();
+    if text.trim().is_empty() {
+        return;
+    }
+
+    let app_handle = APP.get().unwrap();
+    let state: tauri::State<CitationTextWrapper> = app_handle.state();
+    state.0.lock().unwrap().replace_range(.., &text);
+
+    // Build or reuse window (invisible, frontend shows itself)
+    let (window, exists) = build_window("citation", "Citation");
+    if !exists {
+        let always_on_top = get("citation_always_on_top")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        window.set_always_on_top(always_on_top).unwrap();
+        window.set_min_size(Some(tauri::LogicalSize::new(300.0, 200.0))).unwrap();
+        window.set_size(tauri::LogicalSize::new(400.0, 500.0)).unwrap();
+    }
+
+    emit_citation_init(&window, &text);
+    info!("citation_selection: text len={}, segments={}", text.len(), split_citations(&text).len());
+}
+
+fn emit_citation_init(window: &tauri::Window, text: &str) {
+    let segments = split_citations(text);
+    let total = segments.len();
+
+    let placeholders: Vec<ParseResult> = segments
+        .iter()
+        .enumerate()
+        .map(|(i, (idx, _))| ParseResult::placeholder(i, idx.as_deref()))
+        .collect();
+
+    let payload = serde_json::json!({
+        "papers": placeholders,
+        "captured_text": text,
+        "total": total,
+    }).to_string();
+    info!("emit_citation_init: {} papers, text len={}", total, text.len());
+    let _ = window.emit("citation_init", payload);
+}
+
+#[tauri::command]
+pub fn get_citation_state() -> String {
+    let app_handle = APP.get().unwrap();
+    let state: tauri::State<CitationTextWrapper> = app_handle.state();
+    let text = state.0.lock().unwrap().clone();
+    if text.is_empty() {
+        return "{}".to_string();
+    }
+    let segments = split_citations(&text);
+    let placeholders: Vec<ParseResult> = segments
+        .iter()
+        .enumerate()
+        .map(|(i, (idx, _))| ParseResult::placeholder(i, idx.as_deref()))
+        .collect();
+    serde_json::json!({
+        "papers": placeholders,
+        "captured_text": text,
+        "total": segments.len(),
+    }).to_string()
 }
 
 #[tauri::command(async)]

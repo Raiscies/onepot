@@ -1,5 +1,5 @@
 use crate::config::{get, set};
-use crate::window::{input_translate, ocr_recognize, ocr_translate, selection_translate};
+use crate::window::{citation_selection, input_translate, ocr_recognize, ocr_translate, selection_translate};
 use crate::APP;
 use log::{info, warn};
 use tauri::{AppHandle, GlobalShortcutManager};
@@ -54,6 +54,9 @@ pub fn register_shortcut(shortcut: &str) -> Result<(), String> {
         }
         "hotkey_ocr_recognize" => register(app_handle, "hotkey_ocr_recognize", ocr_recognize, "")?,
         "hotkey_ocr_translate" => register(app_handle, "hotkey_ocr_translate", ocr_translate, "")?,
+        "hotkey_citation_search" => {
+            register(app_handle, "hotkey_citation_search", citation_selection, "")?
+        }
         "all" => {
             register(
                 app_handle,
@@ -64,6 +67,12 @@ pub fn register_shortcut(shortcut: &str) -> Result<(), String> {
             register(app_handle, "hotkey_input_translate", input_translate, "")?;
             register(app_handle, "hotkey_ocr_recognize", ocr_recognize, "")?;
             register(app_handle, "hotkey_ocr_translate", ocr_translate, "")?;
+            register(
+                app_handle,
+                "hotkey_citation_search",
+                citation_selection,
+                "",
+            )?;
         }
         _ => {}
     }
@@ -91,6 +100,14 @@ pub fn register_shortcut_by_frontend(name: &str, shortcut: &str) -> Result<(), S
         }
         "hotkey_ocr_translate" => {
             register(app_handle, "hotkey_ocr_translate", ocr_translate, shortcut)?
+        }
+        "hotkey_citation_search" => {
+            register(
+                app_handle,
+                "hotkey_citation_search",
+                citation_selection,
+                shortcut,
+            )?
         }
         _ => {}
     }

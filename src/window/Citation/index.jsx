@@ -10,6 +10,7 @@ import { MdFileDownload } from 'react-icons/md';
 import { MdOpenInNew } from 'react-icons/md';
 import { MdSearch } from 'react-icons/md';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/tauri';
 import { Button } from '@nextui-org/react';
 import React, { useState, useEffect } from 'react';
 
@@ -63,15 +64,34 @@ export default function Citation() {
     const [alwaysOnTop] = useConfig('citation_always_on_top', false);
     const [capturedText, setCapturedText] = useState('');
     const [results, setResults] = useState([]);
+    const [hideCitationText] = useConfig('citation_hide_citation_text', false);
+    const [hideWindow] = useConfig('citation_hide_window', false);
 
     // Listen for backend events: citation_init, citation_update
     useEffect(() => {
         const unlisteners = [];
 
+        // Pull state on mount in case event was emitted before load
+        invoke('get_citation_state').then((raw) => {
+            const data = JSON.parse(raw);
+            if (data.captured_text) {
+                setCapturedText(data.captured_text);
+                setResults(data.papers || []);
+                if (!hideWindow) {
+                    appWindow.show();
+                    appWindow.setFocus();
+                }
+            }
+        });
+
         listen('citation_init', (event) => {
             const data = JSON.parse(event.payload);
             setCapturedText(data.captured_text || '');
             setResults(data.papers || []);
+            if (!hideWindow) {
+                appWindow.show();
+                appWindow.setFocus();
+            }
         }).then((f) => unlisteners.push(f));
 
         // citation_update: deep-merge into existing card, missing fields preserved
@@ -128,7 +148,7 @@ export default function Citation() {
                 </Button>
             </div>
             <div className='px-2 pb-1'>
-                {capturedText && (
+                {!hideCitationText && capturedText && (
                     <div className='text-tiny text-default-400 bg-default-100 rounded-lg p-2 max-h-[80px] overflow-y-auto whitespace-pre-wrap'>
                         {capturedText}
                     </div>
