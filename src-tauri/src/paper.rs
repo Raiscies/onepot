@@ -25,11 +25,14 @@ pub struct Paper {
     pub pages: Option<String>,
     pub publisher: Option<String>,
     pub url: Option<String>,
+
+    // display status
+    #[serde(default)]
+    pub status: PaperStatus,
 }
 
 impl Paper {
     /// Merge non-empty fields from `other` into `self`.
-    /// Each field is only overwritten if self has no value.
     pub fn merge(&mut self, other: &Paper) {
         if self.title.is_none() {
             self.title = other.title.clone();
@@ -55,23 +58,23 @@ impl Paper {
 /// Frontend display state for a PaperCard.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum CardStatus {
+pub enum PaperStatus {
     Ready,
     Searching,
     Error(String),
 }
 
-impl Default for CardStatus {
+impl Default for PaperStatus {
     fn default() -> Self {
-        CardStatus::Ready
+        PaperStatus::Ready
     }
 }
 
-/// A Paper wrapped with display state, position, and parsing context.
+/// Result of parsing a single citation: Paper with display context.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaperCard {
+pub struct ParseResult {
     pub paper: Paper,
-    pub status: CardStatus,
+    // position index in the result list
     pub index: usize,
     // parsing context
     #[serde(default)]
@@ -80,23 +83,27 @@ pub struct PaperCard {
     pub raw_citation: Option<String>,
 }
 
-impl PaperCard {
-    /// Create a placeholder card shown as a skeleton while searching.
+impl ParseResult {
+    /// Create a placeholder entry shown as a skeleton while searching.
     pub fn placeholder(index: usize, citation_index: Option<&str>) -> Self {
-        PaperCard {
-            paper: Paper::default(),
-            status: CardStatus::Searching,
+        ParseResult {
+            paper: Paper {
+                status: PaperStatus::Searching,
+                ..Default::default()
+            },
             index,
             citation_index: citation_index.map(|s| s.to_string()),
             raw_citation: None,
         }
     }
 
-    /// Create an error card when citation parsing fails.
+    /// Create an error entry when citation parsing fails.
     pub fn error(index: usize, raw_citation: &str, error_msg: &str) -> Self {
-        PaperCard {
-            paper: Paper::default(),
-            status: CardStatus::Error(error_msg.to_string()),
+        ParseResult {
+            paper: Paper {
+                status: PaperStatus::Error(error_msg.to_string()),
+                ..Default::default()
+            },
             index,
             citation_index: None,
             raw_citation: Some(raw_citation.to_string()),
@@ -106,7 +113,7 @@ impl PaperCard {
     /// Merge search result into this card's paper, then mark ready.
     pub fn apply_search_result(&mut self, result: &Paper) {
         self.paper.merge(result);
-        self.status = CardStatus::Ready;
+        self.paper.status = PaperStatus::Ready;
     }
 }
 

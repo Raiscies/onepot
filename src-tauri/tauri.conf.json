@@ -7,7 +7,7 @@
         "withGlobalTauri": false
     },
     "package": {
-        "productName": "pot",
+        "productName": "onepot",
         "version": "3.0.7"
     },
     "tauri": {
@@ -69,7 +69,7 @@
             "targets": "all",
             "identifier": "com.pot-app.desktop",
             "longDescription": "A cross-platform text translation and ocr software",
-            "shortDescription": "Pot App",
+            "shortDescription": "OnePot App",
             "externalBin": [],
             "resources": [],
             "icon": [

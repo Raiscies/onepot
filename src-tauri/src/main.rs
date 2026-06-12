@@ -2,13 +2,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod backup;
+mod citation_parse;
 mod clipboard;
 mod cmd;
 mod config;
 mod error;
 mod hotkey;
 mod lang_detect;
+mod paper;
+mod paper_search;
 mod screenshot;
+mod searcher;
 mod server;
 mod system_ocr;
 mod tray;
@@ -43,14 +47,14 @@ pub struct StringWrapper(pub Mutex<String>);
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
-            Notification::new(&app.config().tauri.bundle.identifier)
-                .title("The program is already running. Please do not start it again!")
-                .body(cwd)
-                .icon("pot")
-                .show()
-                .unwrap();
-        }))
+        // .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
+        //     Notification::new(&app.config().tauri.bundle.identifier)
+        //         .title("The program is already running. Please do not start it again!")
+        //         .body(cwd)
+        //         .icon("pot")
+        //         .show()
+        //         .unwrap();
+        // }))
         .plugin(
             tauri_plugin_log::Builder::default()
                 .targets([LogTarget::LogDir, LogTarget::Stdout])
