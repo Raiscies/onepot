@@ -39,6 +39,7 @@ use tauri_plugin_log::LogTarget;
 use tray::*;
 use updater::check_update;
 use window::config_window;
+use window::open_citation_window;
 use window::updater_window;
 
 // Global AppHandle
@@ -153,7 +154,8 @@ fn main() {
             local,
             install_plugin,
             font_list,
-            aliyun
+            aliyun,
+            open_citation_window
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

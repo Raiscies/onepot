@@ -409,3 +409,14 @@ pub fn updater_window() {
     window.set_size(tauri::LogicalSize::new(600, 400)).unwrap();
     window.center().unwrap();
 }
+
+#[tauri::command(async)]
+pub fn open_citation_window() {
+    let (window, _exists) = build_window("citation", "Citation");
+    window
+        .set_min_size(Some(tauri::LogicalSize::new(320, 200)))
+        .unwrap();
+    window.set_size(tauri::LogicalSize::new(400, 500)).unwrap();
+    window.show().unwrap();
+    window.set_focus().unwrap();
+}

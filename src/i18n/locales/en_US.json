@@ -146,7 +146,8 @@
                 "always_on_top": "Always on Top",
                 "hide_source": "Hide Source",
                 "hide_language": "Hide Language Bar",
-                "hide_window": "Hide Window"
+                "hide_window": "Hide Window",
+                "test_open": "Test Open Window"
             },
             "recognize": {
                 "label": "Recognize",

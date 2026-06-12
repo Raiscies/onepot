@@ -10,6 +10,7 @@ import { Card } from '@nextui-org/react';
 import React from 'react';
 
 import { useConfig } from '../../../../hooks/useConfig';
+import { invoke } from '@tauri-apps/api';
 
 export default function Citation() {
     const [windowPosition, setWindowPosition] = useConfig('citation_window_position', 'mouse');
@@ -109,6 +110,15 @@ export default function Citation() {
                             }}
                         />
                     )}
+                </div>
+                <div className='config-item mt-4 pt-3 border-t border-divider'>
+                    <Button
+                        color='primary'
+                        variant='flat'
+                        onPress={() => invoke('open_citation_window')}
+                    >
+                        {t('config.citation.test_open')}
+                    </Button>
                 </div>
             </CardBody>
         </Card>
