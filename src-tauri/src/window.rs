@@ -2,14 +2,16 @@
 
 use crate::config::get;
 use crate::config::set;
-use crate::citation_parse::split_citations;
-use crate::paper::ParseResult;
+use crate::citation_parse::{parse_single, set_runner_path, split_citations};
+use crate::paper::{ParseResult, PaperStatus};
 use crate::CitationTextWrapper;
+use crate::CitationResultsWrapper;
 use crate::StringWrapper;
 use crate::APP;
-// use dirs::cache_dir;
 use log::{info, warn};
 use tauri::Manager;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use tauri::Monitor;
 use tauri::Window;
 use tauri::WindowBuilder;
@@ -413,7 +415,11 @@ pub fn updater_window() {
     window.center().unwrap();
 }
 
-/// Hotkey handler: capture selected text, split citations, push placeholders.
+/// Incremented on each search to cancel stale tasks.
+static CITATION_SEARCH_ID: AtomicU64 = AtomicU64::new(0);
+
+/// Hotkey handler: capture selected text, split citations, push placeholders,
+/// then spawn parallel AnyStyle parse tasks.
 pub fn citation_selection() {
     use selection::get_text;
 
@@ -426,58 +432,126 @@ pub fn citation_selection() {
     let state: tauri::State<CitationTextWrapper> = app_handle.state();
     state.0.lock().unwrap().replace_range(.., &text);
 
+    // Init runner path relative to src-tauri (Cargo workspace root)
+    let _ = set_runner_path("resources/anystyle/runner.rb");
+
+    // Cancel previous search
+    let my_id = CITATION_SEARCH_ID.fetch_add(1, Ordering::SeqCst) + 1;
+    info!("citation_search #{my_id}: starting");
+
     // Build or reuse window (invisible, frontend shows itself)
     let (window, exists) = build_window("citation", "Citation");
-    if !exists {
+    if exists {
+        // Restore remembered position if configured
+        let position_type = get("citation_window_position")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or("mouse".to_string());
+        if position_type != "mouse" {
+            let dpi = window.current_monitor().unwrap().unwrap().scale_factor();
+            let pos_x = get("citation_window_position_x").and_then(|v| v.as_i64()).unwrap_or(0);
+            let pos_y = get("citation_window_position_y").and_then(|v| v.as_i64()).unwrap_or(0);
+            window.set_position(tauri::PhysicalPosition::new((pos_x as f64) * dpi, (pos_y as f64) * dpi)).unwrap();
+        }
+    } else {
+        // New window setup
         let always_on_top = get("citation_always_on_top")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
         window.set_always_on_top(always_on_top).unwrap();
         window.set_min_size(Some(tauri::LogicalSize::new(300.0, 200.0))).unwrap();
         window.set_size(tauri::LogicalSize::new(400.0, 500.0)).unwrap();
+
+        // Position: mouse mode is already handled by build_window; pre_state restores saved pos
+        let position_type = get("citation_window_position")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or("mouse".to_string());
+        if position_type != "mouse" {
+            let dpi = window.current_monitor().unwrap().unwrap().scale_factor();
+            let pos_x = get("citation_window_position_x").and_then(|v| v.as_i64()).unwrap_or(0);
+            let pos_y = get("citation_window_position_y").and_then(|v| v.as_i64()).unwrap_or(0);
+            window.set_position(tauri::PhysicalPosition::new((pos_x as f64) * dpi, (pos_y as f64) * dpi)).unwrap();
+        }
     }
 
-    emit_citation_init(&window, &text);
-    info!("citation_selection: text len={}, segments={}", text.len(), split_citations(&text).len());
-}
-
-fn emit_citation_init(window: &tauri::Window, text: &str) {
-    let segments = split_citations(text);
+    // Split and emit initial placeholders (with raw citation text)
+    let segments = split_citations(&text);
     let total = segments.len();
 
     let placeholders: Vec<ParseResult> = segments
         .iter()
         .enumerate()
-        .map(|(i, (idx, _))| ParseResult::placeholder(i, idx.as_deref()))
+        .map(|(i, (idx, raw))| {
+            let mut p = ParseResult::placeholder(i, idx.as_deref());
+            p.raw_citation = Some(raw.clone());
+            p
+        })
         .collect();
+
+    // Store initial placeholders in shared state
+    {
+        let results: tauri::State<CitationResultsWrapper> = app_handle.state();
+        *results.0.lock().unwrap() = placeholders.clone();
+    }
 
     let payload = serde_json::json!({
         "papers": placeholders,
         "captured_text": text,
         "total": total,
     }).to_string();
-    info!("emit_citation_init: {} papers, text len={}", total, text.len());
     let _ = window.emit("citation_init", payload);
+    info!("citation_search #{my_id}: emitted init, {total} papers");
+
+    // Spawn parallel AnyStyle parse tasks
+    for (i, (citation_index, citation_text)) in segments.into_iter().enumerate() {
+        let w = window.clone();
+        let app = app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            if CITATION_SEARCH_ID.load(Ordering::SeqCst) != my_id {
+                return;
+            }
+
+            let mut result = parse_single(&citation_text, i, citation_index.as_deref());
+
+            if CITATION_SEARCH_ID.load(Ordering::SeqCst) != my_id {
+                return;
+            }
+
+            result.paper.status = PaperStatus::Ready;
+
+            // Write into shared results so frontend can pull after mount
+            {
+                let results: tauri::State<CitationResultsWrapper> = app.state();
+                let mut guard = results.0.lock().unwrap();
+                if i < guard.len() {
+                    guard[i] = result.clone();
+                }
+            }
+
+            let update = serde_json::json!({
+                "index": i,
+                "phase": "parsed",
+                "data": result,
+            });
+            let _ = w.emit("citation_update", update.to_string());
+            info!("citation_search #{my_id}: paper #{i} parsed");
+        });
+    }
 }
 
 #[tauri::command]
 pub fn get_citation_state() -> String {
     let app_handle = APP.get().unwrap();
-    let state: tauri::State<CitationTextWrapper> = app_handle.state();
-    let text = state.0.lock().unwrap().clone();
+    let text_state: tauri::State<CitationTextWrapper> = app_handle.state();
+    let text = text_state.0.lock().unwrap().clone();
     if text.is_empty() {
         return "{}".to_string();
     }
-    let segments = split_citations(&text);
-    let placeholders: Vec<ParseResult> = segments
-        .iter()
-        .enumerate()
-        .map(|(i, (idx, _))| ParseResult::placeholder(i, idx.as_deref()))
-        .collect();
+    let results_state: tauri::State<CitationResultsWrapper> = app_handle.state();
+    let papers = results_state.0.lock().unwrap().clone();
     serde_json::json!({
-        "papers": placeholders,
+        "papers": papers,
         "captured_text": text,
-        "total": segments.len(),
+        "total": papers.len(),
     }).to_string()
 }
 

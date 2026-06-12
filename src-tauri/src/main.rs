@@ -54,6 +54,9 @@ pub struct StringWrapper(pub Mutex<String>);
 // Citation text for paper search
 pub struct CitationTextWrapper(pub Mutex<String>);
 
+// Parsed citation results for frontend pull
+pub struct CitationResultsWrapper(pub Mutex<Vec<crate::paper::ParseResult>>);
+
 fn main() {
     tauri::Builder::default()
         // .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
@@ -99,6 +102,7 @@ fn main() {
             }
             app.manage(StringWrapper(Mutex::new("".to_string())));
             app.manage(CitationTextWrapper(Mutex::new("".to_string())));
+            app.manage(CitationResultsWrapper(Mutex::new(vec![])));
             // Update Tray Menu
             update_tray(app.app_handle(), "".to_string(), "".to_string());
             // Start http server

@@ -35,8 +35,9 @@ function deepMerge(dst, src) {
 
 let blurTimeout = null;
 
-const listenBlur = () => {
+const listenBlur = (closeOnBlur) => {
     return listen('tauri://blur', () => {
+        if (!closeOnBlur) return;
         if (appWindow.label === 'citation') {
             if (blurTimeout) clearTimeout(blurTimeout);
             blurTimeout = setTimeout(async () => {
@@ -46,9 +47,10 @@ const listenBlur = () => {
     });
 };
 
-let unlisten = listenBlur();
+let unlisten = null;
 const unlistenBlur = () => {
-    unlisten.then((f) => f());
+    if (unlisten) unlisten.then((f) => f());
+    unlisten = null;
 };
 
 void listen('tauri://focus', () => {
@@ -111,6 +113,16 @@ export default function Citation() {
         };
     }, []);
 
+    // Blur listener respects closeOnBlur setting
+    useEffect(() => {
+        if (closeOnBlur && !pined) {
+            unlisten = listenBlur(closeOnBlur);
+        } else {
+            unlistenBlur();
+        }
+        return () => unlistenBlur();
+    }, [closeOnBlur, pined]);
+
     return (
         <div className='flex flex-col h-screen bg-background'>
             <div data-tauri-drag-region='true' className='fixed top-[5px] left-[5px] right-[5px] h-[30px]' />
@@ -122,15 +134,7 @@ export default function Citation() {
                     disableAnimation
                     className='my-auto bg-transparent'
                     onPress={() => {
-                        if (pined) {
-                            if (closeOnBlur) {
-                                unlisten = listenBlur();
-                            }
-                            appWindow.setAlwaysOnTop(false);
-                        } else {
-                            unlistenBlur();
-                            appWindow.setAlwaysOnTop(true);
-                        }
+                        appWindow.setAlwaysOnTop(!pined);
                         setPined(!pined);
                     }}
                 >
@@ -192,7 +196,11 @@ function PaperCardItem({ item }) {
         setTimeout(() => setCopiedAuthor(null), 800);
     }
 
-    const headerTitle = isSearching ? 'Searching...' : isError ? 'Parse Error' : p.title || 'Untitled';
+    const headerTitle = isSearching
+        ? (item.raw_citation || 'Searching...')
+        : isError
+        ? 'Parse Error'
+        : p.title || 'Untitled';
 
     return (
         <div className='mb-2 rounded-lg border border-divider bg-content1 overflow-hidden'>

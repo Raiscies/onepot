@@ -15,7 +15,7 @@ pub async fn citation_search(text: String) -> Result<(), String> {
     let app = APP.get().ok_or("App handle not initialized")?;
 
     // Init runner path if not set
-    let _ = set_runner_path("src-tauri/resources/anystyle/runner.rb");
+    let _ = set_runner_path("resources/anystyle/runner.rb");
 
     // Open the citation window
     crate::window::open_citation_window();

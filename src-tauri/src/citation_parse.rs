@@ -122,7 +122,12 @@ fn do_parse(citation: &str) -> Result<Paper, String> {
     let items: Value = serde_json::from_str(stdout)
         .map_err(|e| format!("Failed to parse AnyStyle JSON: {e}"))?;
 
-    parse_anystyle_item(&items)
+    // AnyStyle returns an array; take the first element
+    let item = match &items {
+        Value::Array(arr) if !arr.is_empty() => &arr[0],
+        _ => &items,
+    };
+    parse_anystyle_item(item)
 }
 
 /// Set the path to the Ruby AnyStyle runner script.
