@@ -6,6 +6,7 @@ import General from '../pages/General';
 import Service from '../pages/Service';
 import History from '../pages/History';
 import Hotkey from '../pages/Hotkey';
+import Citation from '../pages/Citation';
 import Backup from '../pages/Backup';
 import About from '../pages/About';
 
@@ -17,6 +18,10 @@ const routes = [
     {
         path: '/translate',
         element: <Translate />,
+    },
+    {
+        path: '/citation',
+        element: <Citation />,
     },
     {
         path: '/recognize',

@@ -135,6 +135,19 @@
                 "yandex": "Yandex",
                 "local": "本地"
             },
+            "citation": {
+                "label": "文献识别",
+                "title": "文献识别设置",
+                "window_position": "窗口位置",
+                "mouse": "跟随鼠标",
+                "pre_state": "记住位置",
+                "remember_window_size": "记住窗口大小",
+                "close_on_blur": "失去焦点时关闭窗口",
+                "always_on_top": "窗口默认置顶",
+                "hide_source": "隐藏原文",
+                "hide_language": "隐藏语言栏",
+                "hide_window": "隐藏窗口"
+            },
             "recognize": {
                 "label": "文字识别",
                 "title": "文字识别",
@@ -151,6 +164,7 @@
                 "input_translate": "输入翻译",
                 "ocr_recognize": "文字识别",
                 "ocr_translate": "截图翻译",
+                "citation_search": "划词识别文献",
                 "is_register": "快捷键已被注册",
                 "success": "快捷键注册成功",
                 "set_hotkey": "按下按键设置快捷键"

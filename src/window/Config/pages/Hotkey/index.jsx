@@ -50,6 +50,7 @@ export default function Hotkey() {
     const [inputTranslate, setInputTranslate] = useConfig('hotkey_input_translate', '');
     const [ocrRecognize, setOcrRecognize] = useConfig('hotkey_ocr_recognize', '');
     const [ocrTranslate, setOcrTranslate] = useConfig('hotkey_ocr_translate', '');
+    const [citationSearch, setCitationSearch] = useConfig('hotkey_citation_search', '');
 
     const { t } = useTranslation();
     const toastStyle = useToastStyle();
@@ -233,6 +234,37 @@ export default function Hotkey() {
                                     className={`${ocrTranslate === '' && 'hidden'}`}
                                     onPress={() => {
                                         registerHandler('hotkey_ocr_translate', ocrTranslate);
+                                    }}
+                                >
+                                    {t('common.ok')}
+                                </Button>
+                            }
+                        />
+                    )}
+                </div>
+                <div className='config-item'>
+                    <h3 className='my-auto'>{t('config.hotkey.citation_search')}</h3>
+                    {citationSearch !== null && (
+                        <Input
+                            type='hotkey'
+                            variant='bordered'
+                            value={citationSearch}
+                            label={t('config.hotkey.set_hotkey')}
+                            className='max-w-[50%]'
+                            onKeyDown={(e) => {
+                                keyDown(e, setCitationSearch);
+                            }}
+                            onFocus={() => {
+                                unregister(citationSearch);
+                                setCitationSearch('');
+                            }}
+                            endContent={
+                                <Button
+                                    size='sm'
+                                    variant='flat'
+                                    className={`${citationSearch === '' && 'hidden'}`}
+                                    onPress={() => {
+                                        registerHandler('hotkey_citation_search', citationSearch);
                                     }}
                                 >
                                     {t('common.ok')}

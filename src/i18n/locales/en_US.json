@@ -135,6 +135,19 @@
                 "yandex": "Yandex",
                 "local": "Local"
             },
+            "citation": {
+                "label": "Citation",
+                "title": "Citation Settings",
+                "window_position": "Window Position",
+                "mouse": "Follow Mouse",
+                "pre_state": "Remember Position",
+                "remember_window_size": "Remember Window Size",
+                "close_on_blur": "Close on Blur",
+                "always_on_top": "Always on Top",
+                "hide_source": "Hide Source",
+                "hide_language": "Hide Language Bar",
+                "hide_window": "Hide Window"
+            },
             "recognize": {
                 "label": "Recognize",
                 "title": "Recognition Settings",
@@ -151,6 +164,7 @@
                 "input_translate": "Text Translation",
                 "ocr_recognize": "Text Recognition",
                 "ocr_translate": "Screenshot Translation",
+                "citation_search": "Citation Search",
                 "is_register": "The hotkey is already registered",
                 "success": "Hotkey register success",
                 "set_hotkey": "Press to Set Hotkey"
