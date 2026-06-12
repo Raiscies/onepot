@@ -2,7 +2,7 @@
 
 use crate::config::get;
 use crate::config::set;
-use crate::citation_parse::{parse_single, set_runner_path, split_citations};
+use crate::citation_parse::{parse_single, set_ruby_bin, set_runner_path, split_citations};
 use crate::paper::{ParseResult, PaperStatus};
 use crate::CitationTextWrapper;
 use crate::CitationResultsWrapper;
@@ -432,7 +432,11 @@ pub fn citation_selection() {
     let state: tauri::State<CitationTextWrapper> = app_handle.state();
     state.0.lock().unwrap().replace_range(.., &text);
 
-    // Init runner path relative to src-tauri (Cargo workspace root)
+    // Init ruby & runner path from config
+    let ruby_path = get("citation_ruby_path")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_default();
+    set_ruby_bin(&ruby_path);
     let _ = set_runner_path("resources/anystyle/runner.rb");
 
     // Cancel previous search
@@ -553,6 +557,36 @@ pub fn get_citation_state() -> String {
         "captured_text": text,
         "total": papers.len(),
     }).to_string()
+}
+
+#[tauri::command]
+pub fn test_ruby_path(path: String) -> String {
+    use std::process::Command;
+
+    let ruby = if path.is_empty() { "ruby".to_string() } else { path };
+
+    // Test 1: can we invoke ruby?
+    let version = match Command::new(&ruby).arg("--version").output() {
+        Ok(out) if out.status.success() => {
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        }
+        _ => return "Ruby not found".to_string(),
+    };
+
+    // Test 2: is anystyle gem available?
+    let anystyle = match Command::new(&ruby)
+        .args(["-e", "require 'anystyle'; puts 'ok'"])
+        .output()
+    {
+        Ok(out) if out.status.success() => true,
+        _ => false,
+    };
+
+    if anystyle {
+        format!("{version}\nAnyStyle gem: available")
+    } else {
+        format!("{version}\nAnyStyle gem: NOT installed")
+    }
 }
 
 #[tauri::command(async)]

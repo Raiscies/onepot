@@ -146,6 +146,8 @@
                 "always_on_top": "Always on Top",
                 "hide_citation_text": "Hide Citation Text",
                 "hide_window": "Hide Window",
+                "ruby_path": "Ruby Path (empty = system ruby)",
+                "test_ruby": "Test",
                 "test_open": "Test Open Window"
             },
             "recognize": {

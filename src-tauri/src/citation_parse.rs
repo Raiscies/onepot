@@ -4,6 +4,9 @@ use serde_json::Value;
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
+/// Path to the Ruby binary (default: "ruby").
+static RUBY_BIN: OnceLock<String> = OnceLock::new();
+
 /// Path to the Ruby AnyStyle runner script.
 static RUNNER_PATH: OnceLock<String> = OnceLock::new();
 
@@ -87,8 +90,9 @@ pub fn parse_single(
 
 fn do_parse(citation: &str) -> Result<Paper, String> {
     let runner = get_runner_path()?;
+    let ruby = RUBY_BIN.get().map(|s| s.as_str()).unwrap_or("ruby");
 
-    let mut output = Command::new("ruby")
+    let mut output = Command::new(ruby)
         .arg(&runner)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -128,6 +132,12 @@ fn do_parse(citation: &str) -> Result<Paper, String> {
         _ => &items,
     };
     parse_anystyle_item(item)
+}
+
+/// Set the path to the Ruby binary. Defaults to "ruby" if not set.
+pub fn set_ruby_bin(path: &str) {
+    let bin = if path.is_empty() { "ruby".to_string() } else { path.to_string() };
+    let _ = RUBY_BIN.set(bin);
 }
 
 /// Set the path to the Ruby AnyStyle runner script.

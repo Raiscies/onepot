@@ -1,6 +1,7 @@
 import { DropdownTrigger } from '@nextui-org/react';
 import { DropdownMenu } from '@nextui-org/react';
 import { DropdownItem } from '@nextui-org/react';
+import { Input } from '@nextui-org/react';
 import { useTranslation } from 'react-i18next';
 import { CardBody } from '@nextui-org/react';
 import { Dropdown } from '@nextui-org/react';
@@ -19,6 +20,8 @@ export default function Citation() {
     const [alwaysOnTop, setAlwaysOnTop] = useConfig('citation_always_on_top', false);
     const [hideCitationText, setHideCitationText] = useConfig('citation_hide_citation_text', false);
     const [hideWindow, setHideWindow] = useConfig('citation_hide_window', false);
+    const [rubyPath, setRubyPath] = useConfig('citation_ruby_path', '');
+    const [rubyStatus, setRubyStatus] = React.useState('');
     const { t } = useTranslation();
 
     return (
@@ -100,15 +103,31 @@ export default function Citation() {
                     )}
                 </div>
                 <div className='config-item mt-4 pt-3 border-t border-divider'>
-                    <Button
-                        color='primary'
-                        variant='flat'
-                        onPress={() => invoke('citation_search', {
-                            text: '[1] Smith, J. et al. (2023). A great paper. JMLR, 24, 1-20.\n[2] Doe, A. (2022). Another study. Nature, 600, 100-110.'
-                        })}
-                    >
-                        {t('config.citation.test_open')}
-                    </Button>
+                    <div className='flex items-center gap-2 w-full'>
+                        <Input
+                            variant='bordered'
+                            label={t('config.citation.ruby_path')}
+                            value={rubyPath}
+                            onValueChange={setRubyPath}
+                            className='flex-1'
+                            size='sm'
+                        />
+                        <Button
+                            size='sm'
+                            variant='flat'
+                            onPress={async () => {
+                                const result = await invoke('test_ruby_path', { path: rubyPath });
+                                setRubyStatus(result);
+                            }}
+                        >
+                            {t('config.citation.test_ruby')}
+                        </Button>
+                    </div>
+                    {rubyStatus && (
+                        <div className='text-tiny text-default-500 mt-1 whitespace-pre-wrap'>
+                            {rubyStatus}
+                        </div>
+                    )}
                 </div>
             </CardBody>
         </Card>

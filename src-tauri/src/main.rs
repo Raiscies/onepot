@@ -43,6 +43,7 @@ use updater::check_update;
 use window::config_window;
 use window::get_citation_state;
 use window::open_citation_window;
+use window::test_ruby_path;
 use window::updater_window;
 
 // Global AppHandle
@@ -168,7 +169,8 @@ fn main() {
             aliyun,
             open_citation_window,
             citation_search,
-            get_citation_state
+            get_citation_state,
+            test_ruby_path
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

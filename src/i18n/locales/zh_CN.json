@@ -146,6 +146,8 @@
                 "always_on_top": "窗口默认置顶",
                 "hide_citation_text": "隐藏引用原文",
                 "hide_window": "隐藏窗口",
+                "ruby_path": "Ruby 路径（留空使用系统 ruby）",
+                "test_ruby": "测试",
                 "test_open": "测试打开弹窗"
             },
             "recognize": {
