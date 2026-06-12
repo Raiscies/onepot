@@ -5,6 +5,7 @@ mod backup;
 mod citation_parse;
 mod clipboard;
 mod cmd;
+mod cmd_paper;
 mod config;
 mod download;
 mod error;
@@ -24,6 +25,7 @@ mod window;
 use backup::*;
 use clipboard::*;
 use cmd::*;
+use cmd_paper::*;
 use config::*;
 use hotkey::*;
 use lang_detect::*;
@@ -155,7 +157,8 @@ fn main() {
             install_plugin,
             font_list,
             aliyun,
-            open_citation_window
+            open_citation_window,
+            citation_search
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

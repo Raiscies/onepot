@@ -115,7 +115,9 @@ export default function Citation() {
                     <Button
                         color='primary'
                         variant='flat'
-                        onPress={() => invoke('open_citation_window')}
+                        onPress={() => invoke('citation_search', {
+                            text: '[1] Smith, J. et al. (2023). A great paper. JMLR, 24, 1-20.\n[2] Doe, A. (2022). Another study. Nature, 600, 100-110.'
+                        })}
                     >
                         {t('config.citation.test_open')}
                     </Button>

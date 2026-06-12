@@ -16,7 +16,21 @@ import React, { useState, useEffect } from 'react';
 import { useConfig } from '../../hooks';
 import { osType } from '../../utils/env';
 
-const originalCitation = '[1] Smith, J. et al. (2023). A great paper. JMLR, 24, 1-20.\\n[2] Doe, A. (2022). Another study. Nature, 600, 100-110.';
+/// Deep-merge `src` into `dst`. Missing keys and null values in src are ignored.
+function deepMerge(dst, src) {
+    if (src === null || src === undefined) return dst;
+    if (typeof src !== 'object' || Array.isArray(src)) return src;
+    const result = { ...dst };
+    for (const key of Object.keys(src)) {
+        if (src[key] === null || src[key] === undefined) continue;
+        if (typeof src[key] === 'object' && !Array.isArray(src[key]) && dst[key] != null) {
+            result[key] = deepMerge(dst[key], src[key]);
+        } else {
+            result[key] = src[key];
+        }
+    }
+    return result;
+}
 
 let blurTimeout = null;
 
@@ -47,55 +61,34 @@ export default function Citation() {
     const [pined, setPined] = useState(false);
     const [closeOnBlur] = useConfig('citation_close_on_blur', true);
     const [alwaysOnTop] = useConfig('citation_always_on_top', false);
+    const [capturedText, setCapturedText] = useState('');
     const [results, setResults] = useState([]);
 
+    // Listen for backend events: citation_init, citation_update
     useEffect(() => {
-        setResults([
-            {
-                paper: {
-                    title: 'A Sample Research Paper on Machine Learning',
-                    authors: ['Smith, J.', 'Doe, A.'],
-                    year: 2023,
-                    doi: '10.1234/sample.2023',
-                    journal: 'Journal of AI Research',
-                    volume: '42',
-                    pages: '1-15',
-                    publisher: 'ACM',
-                    url: 'https://doi.org/10.1234/sample.2023',
-                    status: 'ready',
-                    tldr: 'This paper presents a novel approach to machine learning that achieves state-of-the-art results.',
-                    abstract: null,
-                    citation_count: 42,
-                    ccf_rank: 'A',
-                },
-                index: 0,
-                citation_index: '1',
-                raw_citation: '[1] Smith, J. et al. (2023). A Sample Research Paper...',
-                status: 'ready',
-            },
-            {
-                paper: {
-                    title: 'Another Interesting Study',
-                    authors: ['Johnson, R.'],
-                    year: 2022,
-                    doi: '10.5678/another.2022',
-                    journal: null,
-                    volume: null,
-                    pages: null,
-                    publisher: 'Springer',
-                    url: 'https://doi.org/10.5678/another.2022',
-                    status: 'ready',
-                    tldr: null,
-                    abstract: 'We investigate the properties of a novel material under extreme conditions, revealing unexpected phase transitions and quantum effects that challenge existing theoretical frameworks.',
-                    citation_count: 156,
-                    ccf_rank: null,
-                },
-                index: 1,
-                citation_index: '2',
-                raw_citation: '[2] Johnson, R. (2022). Another Interesting Study...',
-                status: 'ready',
-            },
-        ]);
+        const unlisteners = [];
+
+        listen('citation_init', (event) => {
+            const data = JSON.parse(event.payload);
+            setCapturedText(data.captured_text || '');
+            setResults(data.papers || []);
+        }).then((f) => unlisteners.push(f));
+
+        // citation_update: deep-merge into existing card, missing fields preserved
+        listen('citation_update', (event) => {
+            const { index, data } = JSON.parse(event.payload);
+            setResults((prev) => {
+                const next = [...prev];
+                if (index >= 0 && index < next.length) {
+                    next[index] = deepMerge(next[index], data);
+                }
+                return next;
+            });
+        }).then((f) => unlisteners.push(f));
+
+        return () => {
+            unlisteners.forEach((f) => f());
+        };
     }, []);
 
     return (
@@ -135,9 +128,11 @@ export default function Citation() {
                 </Button>
             </div>
             <div className='px-2 pb-1'>
-                <div className='text-tiny text-default-400 bg-default-100 rounded-lg p-2 max-h-[80px] overflow-y-auto whitespace-pre-wrap'>
-                    {originalCitation}
-                </div>
+                {capturedText && (
+                    <div className='text-tiny text-default-400 bg-default-100 rounded-lg p-2 max-h-[80px] overflow-y-auto whitespace-pre-wrap'>
+                        {capturedText}
+                    </div>
+                )}
             </div>
             <div className='flex-1 overflow-y-auto px-2 pb-2'>
                 {results.map((item) => (
