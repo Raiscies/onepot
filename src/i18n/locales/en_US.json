@@ -135,6 +135,36 @@
                 "yandex": "Yandex",
                 "local": "Local"
             },
+            "citation": {
+                "label": "Citation",
+                "title": "Citation",
+                "window_position": "Window Position",
+                "mouse": "Follow Mouse",
+                "pre_state": "Remember Position",
+                "remember_window_size": "Remember Window Size",
+                "close_on_blur": "Close on Blur",
+                "always_on_top": "Always on Top",
+                "hide_citation_text": "Hide Citation Text",
+                "hide_window": "Hide Window",
+                "ruby_path": "Ruby Path (empty = system ruby)",
+                "test_ruby": "Test",
+                "test_open": "Test Open Window",
+                "search_engine": "Search Engine URL"
+            },
+            "download": {
+                "label": "Download",
+                "title": "Download",
+                "download_dir": "Download Directory",
+                "cf_bypass": "Cloudflare Bypass",
+                "cf_host": "Server Address (e.g. 127.0.0.1:8000 or https://...)",
+                "cf_port": "Server Port",
+                "cf_test": "Test Connection",
+                "cf_test_ok": "CloudflareBypass service is available",
+                "cf_test_fail": "CloudflareBypass service is unavailable",
+                "auto_download_count": "Auto-download when papers ≤ N (0=off)",
+                "auto_open_pdf": "Auto-open file after download",
+                "auto_open_doi": "Auto-open link on download failure"
+            },
             "recognize": {
                 "label": "Recognize",
                 "title": "Recognition Settings",
@@ -151,6 +181,7 @@
                 "input_translate": "Text Translation",
                 "ocr_recognize": "Text Recognition",
                 "ocr_translate": "Screenshot Translation",
+                "citation_search": "Citation Search",
                 "is_register": "The hotkey is already registered",
                 "success": "Hotkey register success",
                 "set_hotkey": "Press to Set Hotkey"

@@ -2,13 +2,22 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod backup;
+mod cf_proxy;
+mod citation_parse;
 mod clipboard;
 mod cmd;
+mod cmd_download;
+mod cmd_paper;
 mod config;
+mod download;
 mod error;
 mod hotkey;
 mod lang_detect;
+mod manifest;
+mod paper;
+mod paper_search;
 mod screenshot;
+mod searchers;
 mod server;
 mod system_ocr;
 mod tray;
@@ -18,6 +27,8 @@ mod window;
 use backup::*;
 use clipboard::*;
 use cmd::*;
+use cmd_download::*;
+use cmd_paper::*;
 use config::*;
 use hotkey::*;
 use lang_detect::*;
@@ -33,6 +44,9 @@ use tauri_plugin_log::LogTarget;
 use tray::*;
 use updater::check_update;
 use window::config_window;
+use window::get_citation_state;
+use window::open_citation_window;
+use window::test_ruby_path;
 use window::updater_window;
 
 // Global AppHandle
@@ -41,16 +55,22 @@ pub static APP: OnceCell<tauri::AppHandle> = OnceCell::new();
 // Text to be translated
 pub struct StringWrapper(pub Mutex<String>);
 
+// Citation text for paper search
+pub struct CitationTextWrapper(pub Mutex<String>);
+
+// Parsed citation results for frontend pull
+pub struct CitationResultsWrapper(pub Mutex<Vec<crate::paper::ParseResult>>);
+
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
-            Notification::new(&app.config().tauri.bundle.identifier)
-                .title("The program is already running. Please do not start it again!")
-                .body(cwd)
-                .icon("pot")
-                .show()
-                .unwrap();
-        }))
+        // .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
+        //     Notification::new(&app.config().tauri.bundle.identifier)
+        //         .title("The program is already running. Please do not start it again!")
+        //         .body(cwd)
+        //         .icon("pot")
+        //         .show()
+        //         .unwrap();
+        // }))
         .plugin(
             tauri_plugin_log::Builder::default()
                 .targets([LogTarget::LogDir, LogTarget::Stdout])
@@ -85,10 +105,14 @@ fn main() {
                 config_window();
             }
             app.manage(StringWrapper(Mutex::new("".to_string())));
+            app.manage(CitationTextWrapper(Mutex::new("".to_string())));
+            app.manage(CitationResultsWrapper(Mutex::new(vec![])));
             // Update Tray Menu
             update_tray(app.app_handle(), "".to_string(), "".to_string());
             // Start http server
             start_server();
+            // Init ruby for citation parsing
+            reinit_ruby();
             // Register Global Shortcut
             match register_shortcut("all") {
                 Ok(()) => {}
@@ -147,7 +171,14 @@ fn main() {
             local,
             install_plugin,
             font_list,
-            aliyun
+            aliyun,
+            open_citation_window,
+            get_citation_state,
+            test_ruby_path,
+            reinit_ruby,
+            test_cf_bypass,
+            download_citation_pdf,
+            check_pdf_exists
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

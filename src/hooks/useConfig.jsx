@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { listen, emit } from '@tauri-apps/api/event';
 import { useGetState } from './useGetState';
 import { store } from '../utils/store';
@@ -7,6 +7,7 @@ import { debounce } from '../utils';
 export const useConfig = (key, defaultValue, options = {}) => {
     const [property, setPropertyState, getProperty] = useGetState(null);
     const { sync = true } = options;
+    const initialized = useRef(false);
 
     // 同步到Store (State -> Store)
     const syncToStore = useCallback(
@@ -23,6 +24,7 @@ export const useConfig = (key, defaultValue, options = {}) => {
     const syncToState = useCallback((v) => {
         if (v !== null) {
             setPropertyState(v);
+            initialized.current = true;
         } else {
             store.get(key).then((v) => {
                 if (v === null) {
@@ -32,12 +34,14 @@ export const useConfig = (key, defaultValue, options = {}) => {
                 } else {
                     setPropertyState(v);
                 }
+                initialized.current = true;
             });
         }
     }, []);
 
     const setProperty = useCallback((v, forceSync = false) => {
         setPropertyState(v);
+        if (!initialized.current) return;
         const isSync = forceSync || sync;
         isSync && syncToStore(v);
     }, []);
@@ -53,6 +57,7 @@ export const useConfig = (key, defaultValue, options = {}) => {
             unlisten.then((f) => {
                 f();
             });
+            syncToStore.cancel?.();
         };
     }, []);
 

@@ -1,10 +1,11 @@
-use std::fs;
+// use std::fs
 
 use crate::config::get;
 use crate::config::set;
+use crate::CitationResultsWrapper;
+use crate::CitationTextWrapper;
 use crate::StringWrapper;
 use crate::APP;
-use dirs::cache_dir;
 use log::{info, warn};
 use tauri::Manager;
 use tauri::Monitor;
@@ -408,4 +409,112 @@ pub fn updater_window() {
         .unwrap();
     window.set_size(tauri::LogicalSize::new(600, 400)).unwrap();
     window.center().unwrap();
+}
+
+/// Hotkey handler: capture text, build window, delegate to pipeline.
+pub fn citation_selection() {
+    use selection::get_text;
+
+    let text = get_text();
+    if text.trim().is_empty() {
+        return;
+    }
+
+    let app_handle = APP.get().unwrap();
+
+    // Store captured text
+    let state: tauri::State<CitationTextWrapper> = app_handle.state();
+    state.0.lock().unwrap().replace_range(.., &text);
+
+    // Build or reuse window
+    let (window, exists) = build_window("citation", "Citation");
+    if !exists {
+        let always_on_top = crate::config::get("citation_always_on_top")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        window.set_always_on_top(always_on_top).unwrap();
+        window.set_min_size(Some(tauri::LogicalSize::new(300.0, 200.0))).unwrap();
+        window.set_size(tauri::LogicalSize::new(400.0, 500.0)).unwrap();
+    }
+    if !exists
+        || crate::config::get("citation_window_position")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or("mouse".to_string())
+            != "mouse"
+    {
+        let dpi = window.current_monitor().unwrap().unwrap().scale_factor();
+        let pos_x = crate::config::get("citation_window_position_x")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let pos_y = crate::config::get("citation_window_position_y")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        window
+            .set_position(tauri::PhysicalPosition::new(
+                (pos_x as f64) * dpi,
+                (pos_y as f64) * dpi,
+            ))
+            .unwrap();
+    }
+
+    // Delegate parse + search to cmd_paper
+    crate::cmd_paper::run_citation_pipeline(app_handle, &window, &text);
+}
+
+#[tauri::command]
+pub fn get_citation_state() -> String {
+    let app_handle = APP.get().unwrap();
+    let text_state: tauri::State<CitationTextWrapper> = app_handle.state();
+    let text = text_state.0.lock().unwrap().clone();
+    if text.is_empty() {
+        return "{}".to_string();
+    }
+    let results_state: tauri::State<CitationResultsWrapper> = app_handle.state();
+    let papers = results_state.0.lock().unwrap().clone();
+    serde_json::json!({
+        "papers": papers,
+        "captured_text": text,
+        "total": papers.len(),
+    }).to_string()
+}
+
+#[tauri::command]
+pub fn test_ruby_path(path: String) -> String {
+    use std::process::Command;
+
+    let ruby = if path.is_empty() { "ruby".to_string() } else { path };
+
+    // Test 1: can we invoke ruby?
+    let version = match Command::new(&ruby).arg("--version").output() {
+        Ok(out) if out.status.success() => {
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        }
+        _ => return "Ruby not found".to_string(),
+    };
+
+    // Test 2: is anystyle gem available?
+    let anystyle = match Command::new(&ruby)
+        .args(["-e", "require 'anystyle'; puts 'ok'"])
+        .output()
+    {
+        Ok(out) if out.status.success() => true,
+        _ => false,
+    };
+
+    if anystyle {
+        format!("{version}\nAnyStyle gem: available")
+    } else {
+        format!("{version}\nAnyStyle gem: NOT installed")
+    }
+}
+
+#[tauri::command(async)]
+pub fn open_citation_window() {
+    let (window, _exists) = build_window("citation", "Citation");
+    window
+        .set_min_size(Some(tauri::LogicalSize::new(320, 200)))
+        .unwrap();
+    window.set_size(tauri::LogicalSize::new(400, 500)).unwrap();
+    window.show().unwrap();
+    window.set_focus().unwrap();
 }

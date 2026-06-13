@@ -5,9 +5,11 @@ import { AiFillAppstore } from 'react-icons/ai';
 import { useTranslation } from 'react-i18next';
 import { PiTextboxFill } from 'react-icons/pi';
 import { MdKeyboardAlt } from 'react-icons/md';
+import { MdArticle } from 'react-icons/md';
 import { MdExtension } from 'react-icons/md';
 import { AiFillCloud } from 'react-icons/ai';
 import { FaHistory } from 'react-icons/fa';
+import { MdFileDownload } from 'react-icons/md';
 import { Button } from '@nextui-org/react';
 import React from 'react';
 
@@ -57,6 +59,30 @@ export default function SideBar() {
                 startContent={<PiTextboxFill className='text-[24px]' />}
             >
                 <div className='w-full'>{t('config.recognize.label')}</div>
+            </Button>
+            <Button
+                fullWidth
+                size='lg'
+                variant={setStyle('/citation')}
+                className='mb-[5px]'
+                onPress={() => {
+                    navigate('/citation');
+                }}
+                startContent={<MdArticle className='text-[24px]' />}
+            >
+                <div className='w-full'>{t('config.citation.label')}</div>
+            </Button>
+            <Button
+                fullWidth
+                size='lg'
+                variant={setStyle('/download')}
+                className='mb-[5px]'
+                onPress={() => {
+                    navigate('/download');
+                }}
+                startContent={<MdFileDownload className='text-[24px]' />}
+            >
+                <div className='w-full'>{t('config.download.label')}</div>
             </Button>
             <Button
                 fullWidth

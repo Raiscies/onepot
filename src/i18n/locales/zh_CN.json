@@ -135,6 +135,36 @@
                 "yandex": "Yandex",
                 "local": "本地"
             },
+            "citation": {
+                "label": "文献识别",
+                "title": "文献识别",
+                "window_position": "窗口位置",
+                "mouse": "跟随鼠标",
+                "pre_state": "记住位置",
+                "remember_window_size": "记住窗口大小",
+                "close_on_blur": "失去焦点时关闭窗口",
+                "always_on_top": "窗口默认置顶",
+                "hide_citation_text": "隐藏引用原文",
+                "hide_window": "隐藏窗口",
+                "ruby_path": "Ruby 路径（留空使用系统 ruby）",
+                "test_ruby": "测试",
+                "test_open": "测试打开弹窗",
+                "search_engine": "搜索引擎URL"
+            },
+            "download": {
+                "label": "文献下载",
+                "title": "文献下载",
+                "download_dir": "下载目录",
+                "cf_bypass": "Cloudflare 绕过",
+                "cf_host": "服务地址",
+                "cf_port": "服务端口",
+                "cf_test": "测试连接",
+                "cf_test_ok": "CloudflareBypass 服务可用",
+                "cf_test_fail": "CloudflareBypass 服务不可用",
+                "auto_download_count": "文献数 ≤ 此值时自动下载（0=关闭）",
+                "auto_open_pdf": "下载完成后打开文件",
+                "auto_open_doi": "下载失败时打开文献链接"
+            },
             "recognize": {
                 "label": "文字识别",
                 "title": "文字识别",
@@ -151,6 +181,7 @@
                 "input_translate": "输入翻译",
                 "ocr_recognize": "文字识别",
                 "ocr_translate": "截图翻译",
+                "citation_search": "划词识别文献",
                 "is_register": "快捷键已被注册",
                 "success": "快捷键注册成功",
                 "set_hotkey": "按下按键设置快捷键"
