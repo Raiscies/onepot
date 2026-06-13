@@ -1,5 +1,6 @@
 import { appWindow } from '@tauri-apps/api/window';
 import { writeText } from '@tauri-apps/api/clipboard';
+import { open } from '@tauri-apps/api/shell';
 import { useSpring, animated } from '@react-spring/web';
 import { AiFillCloseCircle } from 'react-icons/ai';
 import { BiCollapseVertical, BiExpandVertical } from 'react-icons/bi';
@@ -176,6 +177,8 @@ function PaperCardItem({ item }) {
 
     const [copiedTitle, setCopiedTitle] = useState(false);
     const [copiedAuthor, setCopiedAuthor] = useState(null);
+    const [searchEngineRaw] = useConfig('citation_search_engine', '');
+    const searchEngine = searchEngineRaw || 'https://scholar.google.com/scholar?q={query}';
 
     const springs = useSpring({
         from: { height: 0 },
@@ -233,11 +236,30 @@ function PaperCardItem({ item }) {
                             <MdFileDownload className='text-small' />
                         </Button>
                     )}
-                    <Button isIconOnly size='sm' variant='light' className='min-w-0 w-6 h-6'>
+                    <Button
+                        isIconOnly
+                        size='sm'
+                        variant='light'
+                        className='min-w-0 w-6 h-6'
+                        onPress={() => {
+                            const rawQuery = encodeURIComponent(item.raw_citation || p.title || '');
+                            const titleQuery = encodeURIComponent(p.title || '');
+                            const url = searchEngine
+                                .replace('{query}', rawQuery)
+                                .replace('{title}', titleQuery);
+                            open(url);
+                        }}
+                    >
                         <MdSearch className='text-small' />
                     </Button>
                     {p.doi && (
-                        <Button isIconOnly size='sm' variant='light' className='min-w-0 w-6 h-6'>
+                        <Button
+                            isIconOnly
+                            size='sm'
+                            variant='light'
+                            className='min-w-0 w-6 h-6'
+                            onPress={() => open(`https://doi.org/${p.doi}`)}
+                        >
                             <MdOpenInNew className='text-small' />
                         </Button>
                     )}

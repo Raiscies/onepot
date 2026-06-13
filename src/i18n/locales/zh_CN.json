@@ -148,7 +148,8 @@
                 "hide_window": "隐藏窗口",
                 "ruby_path": "Ruby 路径（留空使用系统 ruby）",
                 "test_ruby": "测试",
-                "test_open": "测试打开弹窗"
+                "test_open": "测试打开弹窗",
+                "search_engine": "搜索引擎URL"
             },
             "recognize": {
                 "label": "文字识别",

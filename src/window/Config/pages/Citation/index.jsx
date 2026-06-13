@@ -21,8 +21,17 @@ export default function Citation() {
     const [hideCitationText, setHideCitationText] = useConfig('citation_hide_citation_text', false);
     const [hideWindow, setHideWindow] = useConfig('citation_hide_window', false);
     const [rubyPath, setRubyPath] = useConfig('citation_ruby_path', '');
+    const [searchEngine, setSearchEngine] = useConfig('citation_search_engine', '');
     const [rubyStatus, setRubyStatus] = React.useState('');
     const { t } = useTranslation();
+
+    const searchEnginePresets = [
+        { key: 'scholar', label: 'Google Scholar', url: 'https://scholar.google.com/scholar?q={query}' },
+        { key: 'google', label: 'Google', url: 'https://www.google.com/search?q={query}' },
+        { key: 'dblp', label: 'DBLP', url: 'https://dblp.org/search?q={title}' },
+        { key: 'bing', label: 'Bing', url: 'https://www.bing.com/search?q={query}' },
+        { key: 'arxiv', label: 'arXiv', url: 'https://arxiv.org/search/?query={title}&searchtype=all' },
+    ];
 
     return (
         <Card>
@@ -131,6 +140,36 @@ export default function Citation() {
                             {rubyStatus}
                         </div>
                     )}
+                </div>
+                <div className='config-item mt-4 pt-3 border-t border-divider'>
+                    <div className='flex items-center gap-2 w-full'>
+                        <Input
+                            variant='bordered'
+                            label={t('config.citation.search_engine')}
+                            value={searchEngine}
+                            onValueChange={(v) => setSearchEngine(v)}
+                            className='flex-1'
+                            size='sm'
+                        />
+                        <Dropdown>
+                            <DropdownTrigger>
+                                <Button variant='bordered' size='sm' className='shrink-0'>
+                                    {searchEnginePresets.find((p) => p.url === searchEngine)?.label || 'Presets'}
+                                </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu
+                                aria-label='search engine presets'
+                                onAction={(key) => {
+                                    const preset = searchEnginePresets.find((p) => p.key === key);
+                                    if (preset) setSearchEngine(preset.url);
+                                }}
+                            >
+                                {searchEnginePresets.map((p) => (
+                                    <DropdownItem key={p.key}>{p.label}</DropdownItem>
+                                ))}
+                            </DropdownMenu>
+                        </Dropdown>
+                    </div>
                 </div>
             </CardBody>
         </Card>
