@@ -125,7 +125,6 @@ async fn run_stages(
         let search_service = SEARCH_SERVICE.get().unwrap();
         if let Some(best) = search_service.search_all(&result.paper).await.first() {
             result.apply_search_result(&best.paper);
-            info!("citation_search #{search_id}: paper #{index} enriched data: {:?}", result.paper);
         }
         if is_cancelled(search_id) { return; }
         emit_update(window, index, "enriched", &result);

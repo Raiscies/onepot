@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
 const API_URL: &str = "https://api.semanticscholar.org/graph/v1/paper/search/match";
-const FIELDS: &str = "title,authors,year,externalIds,publicationVenue,openAccessPdf,abstract,tldr,citationCount";
+const FIELDS: &str = "title,authors,year,externalIds,publicationVenue,url,openAccessPdf,abstract,tldr,citationCount";
 
 #[derive(Debug, Deserialize)]
 struct SSResponse {
@@ -42,6 +42,8 @@ struct SSAuthor {
 struct SSExternalIds {
     #[serde(rename = "DOI")]
     doi: Option<String>,
+    #[serde(rename = "ArXiv")]
+    arxiv: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -102,6 +104,11 @@ impl SemanticScholarSearcher {
             .as_ref()
             .and_then(|ids| ids.doi.clone());
 
+        let arxiv_id = ss
+            .external_ids
+            .as_ref()
+            .and_then(|ids| ids.arxiv.clone());
+
         let venue = ss.publication_venue.as_ref();
         let journal = venue.and_then(|v| v.name.clone());
         let volume = venue.and_then(|v| v.volume.clone());
@@ -110,6 +117,7 @@ impl SemanticScholarSearcher {
         let url = doi
             .as_ref()
             .map(|d| format!("https://doi.org/{d}"))
+            .or_else(|| arxiv_id.as_ref().map(|id| format!("https://arxiv.org/abs/{id}")))
             .or_else(|| ss.url.clone());
 
         Paper {

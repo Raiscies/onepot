@@ -200,7 +200,7 @@ function PaperCardItem({ item, shouldAutoDownload }) {
     const [downloadPath, setDownloadPath] = useState('');
     const [downloadProgress, setDownloadProgress] = useState({ downloaded: 0, total: 0 });
     const [autoOpenPdfCard] = useConfig('download_auto_open', false);
-    const [autoOpenDoiCard] = useConfig('download_auto_open_doi', false);
+    const [autoOpenUrl] = useConfig('download_auto_open_doi', false);
     const autoDownloadedRef = React.useRef(false);
 
     /// Perform the actual download. Shared by manual click and auto-download.
@@ -217,16 +217,16 @@ function PaperCardItem({ item, shouldAutoDownload }) {
             } else if (outcome.status === 'no_handler') {
                 setDownloadState('no_handler');
                 toast.error(`No download handler for: ${outcome.host}`);
-                if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
+                if (autoOpenUrl && p.url) open(p.url);
             } else {
                 setDownloadState('failed');
                 toast.error(outcome.reason || 'Download failed');
-                if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
+                if (autoOpenUrl && p.url) open(p.url);
             }
         } catch (e) {
             setDownloadState('failed');
             toast.error(`Download error: ${e}`);
-            if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
+            if (autoOpenUrl && p.url) open(p.url);
         }
     };
 
@@ -326,7 +326,7 @@ function PaperCardItem({ item, shouldAutoDownload }) {
                     </span>
                 </div>
                 <div className='flex gap-0.5'>
-                    {p.doi && downloadState !== 'no_handler' && downloadState !== 'success' && (
+                    {p.url && downloadState !== 'no_handler' && downloadState !== 'success' && (
                         <Button
                             isIconOnly
                             size='sm'
@@ -385,7 +385,7 @@ function PaperCardItem({ item, shouldAutoDownload }) {
                     >
                         <MdSearch className='text-small' />
                     </Button>
-                    {(p.doi || p.url) && (
+                    {p.url && (
                         <Button
                             isIconOnly
                             size='sm'
