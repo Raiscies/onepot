@@ -326,7 +326,7 @@ function PaperCardItem({ item, shouldAutoDownload }) {
                     </span>
                 </div>
                 <div className='flex gap-0.5'>
-                    {p.url && downloadState !== 'no_handler' && downloadState !== 'success' && (
+                    {p.doi && downloadState !== 'no_handler' && downloadState !== 'success' && (
                         <Button
                             isIconOnly
                             size='sm'

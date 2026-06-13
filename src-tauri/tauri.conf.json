@@ -8,7 +8,7 @@
     },
     "package": {
         "productName": "onepot",
-        "version": "3.0.7"
+        "version": "3.0.7-onepot.0.1.0"
     },
     "tauri": {
         "allowlist": {
@@ -67,7 +67,7 @@
             "category": "Utility",
             "copyright": "GPLv3",
             "targets": "all",
-            "identifier": "com.pot-app.desktop",
+            "identifier": "cc.raisc.onepot.desktop",
             "longDescription": "A cross-platform text translation and ocr software",
             "shortDescription": "OnePot App",
             "externalBin": [],

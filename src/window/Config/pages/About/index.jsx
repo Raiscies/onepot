@@ -21,7 +21,7 @@ export default function About() {
                 draggable={false}
             />
             <div className='content-center'>
-                <h1 className='font-bold text-2xl text-center'>Pot</h1>
+                <h1 className='font-bold text-2xl text-center'>OnePot</h1>
                 <p className='text-center text-sm text-gray-500 mb-[5px]'>{appVersion}</p>
                 <Divider />
                 <div className='flex justify-between'>
@@ -40,7 +40,7 @@ export default function About() {
                         className='my-[5px]'
                         size='sm'
                         onPress={() => {
-                            open('https://github.com/pot-app/pot-desktop');
+                            open('https://github.com/Raiscies/onepot');
                         }}
                     >
                         {t('config.about.github')}
@@ -65,7 +65,7 @@ export default function About() {
                                     className='my-[5px]'
                                     size='sm'
                                     onPress={() => {
-                                        open('https://github.com/pot-app/pot-desktop/issues');
+                                        open('https://github.com/Raiscies/onepot/issues');
                                     }}
                                 >
                                     {t('config.about.issue')}
@@ -75,7 +75,7 @@ export default function About() {
                                     className='my-[5px]'
                                     size='sm'
                                     onPress={() => {
-                                        open('mailto:support@pot-app.com');
+                                        open('mailto:m@raisc.cc');
                                     }}
                                 >
                                     {t('config.about.email')}
