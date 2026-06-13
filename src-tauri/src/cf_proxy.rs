@@ -1,6 +1,7 @@
 /// CloudflareBypass proxy client.
 /// Communicates with the external CF bypass Python service via HTTP.
 use serde::Deserialize;
+use tauri::Manager;
 
 /// Health check response from /cache/stats
 #[derive(Debug, Deserialize)]
@@ -43,6 +44,7 @@ pub async fn download_via_cf(
     client: &reqwest::Client,
     base_url: &str,
     target_url: &str,
+    doi: &str,
     download_dir: &std::path::Path,
     filename: &str,
 ) -> Option<std::path::PathBuf> {
@@ -51,6 +53,9 @@ pub async fn download_via_cf(
 
     let proxy_url = format!("{base_url}{path}");
     let dest = download_dir.join(filename);
+
+    // Emit indefinite spinner signal (total=0 means indeterminate)
+    emit_progress(doi, 0, 0);
 
     let resp = match client
         .get(&proxy_url)
@@ -83,16 +88,29 @@ pub async fn download_via_cf(
         return None;
     }
 
+    let len = bytes.len() as u64;
     if let Some(parent) = dest.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
 
     match std::fs::write(&dest, &bytes) {
-        Ok(_) => Some(dest),
+        Ok(_) => {
+            emit_progress(doi, len, len);
+            Some(dest)
+        }
         Err(e) => {
             log::warn!("Failed to write downloaded file: {e}");
             None
         }
+    }
+}
+
+fn emit_progress(doi: &str, downloaded: u64, total: u64) {
+    if let Some(handle) = crate::APP.get() {
+        let _ = handle.emit_all(
+            "download_progress",
+            serde_json::json!({ "doi": doi, "downloaded": downloaded, "total": total }),
+        );
     }
 }
 

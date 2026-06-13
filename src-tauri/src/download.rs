@@ -6,9 +6,19 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::time::Instant;
+use tauri::Manager;
 
 /// Result type for a handler: Ok(Some(path)) = success, Ok(None) = soft failure, Err(msg) = hard failure.
 pub type HandlerResult = Result<Option<PathBuf>, String>;
+
+/// Structured download outcome for the frontend.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum DownloadOutcome {
+    Success { path: String },
+    NoHandler { host: String },
+    Failed { reason: String },
+}
 
 /// Signature of a publisher download handler (async, boxed).
 pub type HandlerFn = Box<dyn Fn(DownloadContext) -> Pin<Box<dyn Future<Output = HandlerResult> + Send>> + Send + Sync>;
@@ -140,19 +150,32 @@ impl DownloadService {
         doi: &str,
         meta: &PaperMeta,
         client: &reqwest::Client,
-    ) -> Result<Option<PathBuf>, String> {
+    ) -> DownloadOutcome {
         // Check if already downloaded
         if let Some(path) = self.manifest.get(doi, &self.storage_dir) {
-            return Ok(Some(path));
+            return DownloadOutcome::Success {
+                path: path.to_string_lossy().to_string(),
+            };
         }
 
         // Resolve DOI
-        let publisher_url = self.resolve_doi(client, doi).await?;
-        let host = Self::extract_host(&publisher_url)
-            .ok_or_else(|| format!("Cannot extract host from: {publisher_url}"))?;
+        let publisher_url = match self.resolve_doi(client, doi).await {
+            Ok(u) => u,
+            Err(e) => return DownloadOutcome::Failed { reason: e },
+        };
+        let host = match Self::extract_host(&publisher_url) {
+            Some(h) => h,
+            None => {
+                return DownloadOutcome::Failed {
+                    reason: format!("Cannot extract host from: {publisher_url}"),
+                }
+            }
+        };
 
         // Rate limit
-        self.check_rate_limit(&host)?;
+        if let Err(e) = self.check_rate_limit(&host) {
+            return DownloadOutcome::Failed { reason: e };
+        }
 
         // Build filename
         let filename = build_filename(&self.naming_pattern, doi, meta);
@@ -167,22 +190,30 @@ impl DownloadService {
         };
 
         // Find handler
-        let handler = self
-            .handlers
-            .get(&host)
-            .ok_or_else(|| format!("No handler for publisher: {host}"))?;
+        let handler = match self.handlers.get(&host) {
+            Some(h) => h,
+            None => return DownloadOutcome::NoHandler { host },
+        };
 
         // Download
-        let result = handler(ctx).await?;
+        let result = match handler(ctx).await {
+            Ok(r) => r,
+            Err(e) => return DownloadOutcome::Failed { reason: e },
+        };
 
         // Record
         self.rate_limit.insert(host, Instant::now());
-        if result.is_some() {
+        if let Some(ref path) = result {
             self.manifest.set(doi, &filename);
             self.manifest.save(&self.manifest_path);
+            return DownloadOutcome::Success {
+                path: path.to_string_lossy().to_string(),
+            };
         }
 
-        Ok(result)
+        DownloadOutcome::Failed {
+            reason: "Download returned empty result".to_string(),
+        }
     }
 }
 
@@ -241,13 +272,14 @@ fn build_handler(config: HandlerConfig) -> HandlerFn {
                     &client,
                     &ctx.cf_base_url,
                     &final_url,
+                    &ctx.doi,
                     &ctx.download_dir,
                     &ctx.filename,
                 )
                 .await);
             }
 
-            Ok(download_direct(&client, &final_url, &ctx.download_dir, &ctx.filename).await)
+            Ok(download_direct(&client, &final_url, &ctx.download_dir, &ctx.filename, &ctx.doi).await)
         }) as Pin<Box<dyn Future<Output = HandlerResult> + Send>>
     })
 }
@@ -322,19 +354,49 @@ async fn download_direct(
     url: &str,
     download_dir: &Path,
     filename: &str,
+    doi: &str,
 ) -> Option<PathBuf> {
     let dest = download_dir.join(filename);
     let resp = client.get(url).send().await.ok()?;
     if !resp.status().is_success() {
         return None;
     }
-    let bytes = resp.bytes().await.ok()?;
-    if bytes.is_empty() {
+
+    let total = resp.content_length().unwrap_or(0);
+    let mut downloaded: u64 = 0;
+    let mut buf = Vec::new();
+
+    // Stream the response, reporting progress
+    use futures::StreamExt;
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.ok()?;
+        downloaded += chunk.len() as u64;
+        buf.extend_from_slice(&chunk);
+        if total > 0 {
+            emit_progress(doi, downloaded, total);
+        }
+    }
+
+    if buf.is_empty() {
         return None;
     }
+    // Signal 100% on completion
+    emit_progress(doi, total, total);
+
     if let Some(parent) = dest.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    std::fs::write(&dest, &bytes).ok()?;
+    std::fs::write(&dest, &buf).ok()?;
     Some(dest)
+}
+
+/// Emit a progress event to the citation window.
+fn emit_progress(doi: &str, downloaded: u64, total: u64) {
+    if let Some(handle) = crate::APP.get() {
+        let _ = handle.emit_all(
+            "download_progress",
+            serde_json::json!({ "doi": doi, "downloaded": downloaded, "total": total }),
+        );
+    }
 }

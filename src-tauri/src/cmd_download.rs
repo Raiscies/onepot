@@ -49,7 +49,7 @@ pub async fn test_cf_bypass(host: String, port: u16) -> Result<bool, String> {
 }
 
 /// Download a paper PDF by DOI.
-/// Returns the downloaded file path on success, or an error message.
+/// Returns a JSON DownloadOutcome: {status: "success"|"no_handler"|"failed", ...}
 #[tauri::command]
 pub async fn download_citation_pdf(doi: String, paper: Paper) -> Result<String, String> {
     let service = get_download_service();
@@ -68,13 +68,7 @@ pub async fn download_citation_pdf(doi: String, paper: Paper) -> Result<String, 
     };
 
     let mut svc = service.lock().await;
-    let result = svc
-        .download_by_doi(&doi, &meta, &client)
-        .await
-        .map_err(|e| format!("Download failed: {e}"))?;
+    let outcome = svc.download_by_doi(&doi, &meta, &client).await;
 
-    match result {
-        Some(path) => Ok(path.to_string_lossy().to_string()),
-        None => Err("Download failed: no handler available or CF bypass unreachable".to_string()),
-    }
+    serde_json::to_string(&outcome).map_err(|e| format!("Serialization failed: {e}"))
 }

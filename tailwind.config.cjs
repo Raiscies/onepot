@@ -10,7 +10,17 @@ module.exports = {
         './node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}',
     ],
     theme: {
-        extend: {},
+        extend: {
+            animation: {
+                'indeterminate': 'indeterminate 1.5s ease-in-out infinite',
+            },
+            keyframes: {
+                indeterminate: {
+                    '0%': { transform: 'translateX(-100%)' },
+                    '100%': { transform: 'translateX(400%)' },
+                },
+            },
+        },
     },
     darkMode: 'class',
     plugins: [

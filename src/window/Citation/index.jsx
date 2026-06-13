@@ -13,6 +13,7 @@ import { MdSearch } from 'react-icons/md';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/tauri';
 import { Button } from '@nextui-org/react';
+import toast, { Toaster } from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 
 import { useConfig } from '../../hooks';
@@ -126,6 +127,7 @@ export default function Citation() {
 
     return (
         <div className='flex flex-col h-screen bg-background'>
+            <Toaster />
             <div data-tauri-drag-region='true' className='fixed top-[5px] left-[5px] right-[5px] h-[30px]' />
             <div className={`h-[35px] w-full flex ${osType === 'Darwin' ? 'justify-end' : 'justify-between'}`}>
                 <Button
@@ -179,7 +181,21 @@ function PaperCardItem({ item }) {
     const [copiedAuthor, setCopiedAuthor] = useState(null);
     const [searchEngineRaw] = useConfig('citation_search_engine', '');
     const searchEngine = searchEngineRaw || 'https://scholar.google.com/scholar?q={query}';
-    const [downloadMsg, setDownloadMsg] = useState('');
+    const [downloadState, setDownloadState] = useState('idle'); // idle | downloading | success | no_handler | failed
+    const [downloadPath, setDownloadPath] = useState('');
+    const [downloadProgress, setDownloadProgress] = useState({ downloaded: 0, total: 0 });
+
+    // Listen for download progress events
+    useEffect(() => {
+        if (!p.doi) return;
+        const unlisten = listen('download_progress', (event) => {
+            const data = JSON.parse(event.payload);
+            if (data.doi === p.doi) {
+                setDownloadProgress({ downloaded: data.downloaded, total: data.total });
+            }
+        });
+        return () => { unlisten.then((f) => f()); };
+    }, [p.doi]);
 
     const springs = useSpring({
         from: { height: 0 },
@@ -232,24 +248,58 @@ function PaperCardItem({ item }) {
                     </span>
                 </div>
                 <div className='flex gap-0.5'>
-                    {p.doi && (
+                    {p.doi && downloadState !== 'no_handler' && downloadState !== 'success' && (
                         <Button
                             isIconOnly
                             size='sm'
                             variant='light'
                             className='min-w-0 w-6 h-6'
+                            isDisabled={downloadState === 'downloading'}
                             onPress={async () => {
-                                setDownloadMsg('Downloading...');
+                                setDownloadState('downloading');
+                                setDownloadProgress({ downloaded: 0, total: 0 });
                                 try {
-                                    const path = await invoke('download_citation_pdf', { doi: p.doi, paper: p });
-                                    setDownloadMsg(`Saved: ${path}`);
+                                    const raw = await invoke('download_citation_pdf', { doi: p.doi, paper: p });
+                                    const outcome = JSON.parse(raw);
+                                    if (outcome.status === 'success') {
+                                        setDownloadState('success');
+                                        setDownloadPath(outcome.path);
+                                    } else if (outcome.status === 'no_handler') {
+                                        setDownloadState('no_handler');
+                                        toast.error(`No download handler for: ${outcome.host}`);
+                                    } else {
+                                        setDownloadState('failed');
+                                        toast.error(outcome.reason || 'Download failed');
+                                    }
                                 } catch (e) {
-                                    setDownloadMsg(`Failed: ${e}`);
+                                    setDownloadState('failed');
+                                    toast.error(`Download error: ${e}`);
                                 }
-                                setTimeout(() => setDownloadMsg(''), 3000);
                             }}
                         >
                             <MdFileDownload className='text-small' />
+                        </Button>
+                    )}
+                    {downloadState === 'success' && (
+                        <Button
+                            isIconOnly
+                            size='sm'
+                            variant='light'
+                            className='min-w-0 w-6 h-6'
+                            onPress={() => open(downloadPath)}
+                        >
+                            <MdOpenInNew className='text-small' />
+                        </Button>
+                    )}
+                    {downloadState === 'no_handler' && (
+                        <Button
+                            isIconOnly
+                            size='sm'
+                            variant='light'
+                            className='min-w-0 w-6 h-6'
+                            isDisabled
+                        >
+                            <MdFileDownload className='text-small text-default-300' />
                         </Button>
                     )}
                     <Button
@@ -378,6 +428,20 @@ function PaperCardItem({ item }) {
                     {isSearching && (
                         <div className='mt-2 h-1 bg-default-100 rounded-full overflow-hidden'>
                             <div className='h-full w-1/3 bg-primary rounded-full animate-pulse' />
+                        </div>
+                    )}
+
+                    {/* download progress bar */}
+                    {downloadState === 'downloading' && (
+                        <div className='mt-1.5 h-1 bg-default-100 rounded-full overflow-hidden'>
+                            {downloadProgress.total > 0 ? (
+                                <div
+                                    className='h-full bg-green-400 rounded-full transition-all duration-300'
+                                    style={{ width: `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%` }}
+                                />
+                            ) : (
+                                <div className='h-full w-1/3 bg-green-400 rounded-full animate-indeterminate' />
+                            )}
                         </div>
                     )}
 
