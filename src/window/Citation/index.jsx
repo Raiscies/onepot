@@ -72,7 +72,6 @@ export default function Citation() {
     const [hideCitationText] = useConfig('citation_hide_citation_text', false);
     const [hideWindow] = useConfig('citation_hide_window', false);
     const [searchGen, setSearchGen] = useState(0);
-
     // Listen for backend events: citation_init, citation_update
     useEffect(() => {
         const unlisteners = [];
@@ -104,7 +103,8 @@ export default function Citation() {
 
         // citation_update: deep-merge into existing card, missing fields preserved
         listen('citation_update', (event) => {
-            const { index, data } = JSON.parse(event.payload);
+            const { index, phase, data } = JSON.parse(event.payload);
+            data._searchPhase = phase;
             setResults((prev) => {
                 const next = [...prev];
                 if (index >= 0 && index < next.length) {
@@ -187,6 +187,8 @@ function PaperCardItem({ item, shouldAutoDownload }) {
     const p = item.paper;
     const isError = p.status === 'error';
     const isSearching = p.status === 'searching';
+    const searchPhase = item._searchPhase || 'parsing';
+    const showSearchBar = (isSearching || searchPhase === 'parsed') && !isError;
     const [collapsed, setCollapsed] = useState(isError);
     const [contentRef, bounds] = useMeasure({ scroll: true });
 
@@ -489,16 +491,9 @@ function PaperCardItem({ item, shouldAutoDownload }) {
                         </div>
                     )}
 
-                    {/* search progress bar */}
-                    {isSearching && (
+                    {/* unified progress bar slot */}
+                    {downloadState === 'downloading' ? (
                         <div className='mt-2 h-1 bg-default-100 rounded-full overflow-hidden'>
-                            <div className='h-full w-1/3 bg-primary rounded-full animate-pulse' />
-                        </div>
-                    )}
-
-                    {/* download progress bar */}
-                    {downloadState === 'downloading' && (
-                        <div className='mt-1.5 h-1 bg-default-100 rounded-full overflow-hidden'>
                             {downloadProgress.total > 0 ? (
                                 <div
                                     className='h-full bg-green-400 rounded-full transition-all duration-300'
@@ -508,7 +503,11 @@ function PaperCardItem({ item, shouldAutoDownload }) {
                                 <div className='h-full w-1/3 bg-green-400 rounded-full animate-indeterminate' />
                             )}
                         </div>
-                    )}
+                    ) : showSearchBar ? (
+                        <div className='mt-2 h-1 bg-default-100 rounded-full overflow-hidden'>
+                            <div className={`h-full w-1/3 rounded-full animate-indeterminate ${searchPhase === 'parsing' ? 'bg-default-500' : 'bg-primary'}`} />
+                        </div>
+                    ) : null}
 
                     {/* raw citation on error */}
                     {isError && item.raw_citation && (
