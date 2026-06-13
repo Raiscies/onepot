@@ -1,7 +1,6 @@
 use crate::citation_parse::{parse_single, split_citations, set_runner_path};
 use crate::paper::{Paper, ParseResult, PaperStatus};
 use crate::paper_search::SearchService;
-use crate::searcher::semanticscholar::SemanticScholarSearcher;
 use crate::APP;
 use log::{info, warn};
 use tauri::Manager;
@@ -9,7 +8,7 @@ use tauri::Manager;
 /// Full citation search pipeline:
 /// Phase 1: emit captured text + placeholder cards
 /// Phase 2: emit AnyStyle-parsed metadata per card
-/// Phase 3: emit Semantic Scholar enriched data per card
+/// Phase 3: emit Scholar Searching Service enriched data per card
 #[tauri::command]
 pub async fn citation_search(text: String) -> Result<(), String> {
     let app = APP.get().ok_or("App handle not initialized")?;
@@ -59,9 +58,8 @@ pub async fn citation_search(text: String) -> Result<(), String> {
 
                 emit_update(&app, i, "parsed", &result);
 
-                // Phase 3: enrich with Semantic Scholar
-                let mut search_service = SearchService::new();
-                search_service.add(Box::new(SemanticScholarSearcher::new()));
+                // Phase 3: enrich with Scholar Searching Service
+                let search_service = SearchService::new();
                 let search_results = search_service.search_all(&result.paper).await;
 
                 if let Some(best) = search_results.first() {

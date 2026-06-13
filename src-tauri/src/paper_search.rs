@@ -17,9 +17,10 @@ pub struct SearchService {
 }
 
 impl SearchService {
+    /// Create a new SearchService with all registered searchers.
     pub fn new() -> Self {
         SearchService {
-            searchers: Vec::new(),
+            searchers: crate::searcher::all_searchers(),
         }
     }
 
