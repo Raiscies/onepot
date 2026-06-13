@@ -20,7 +20,7 @@ impl SearchService {
     /// Create a new SearchService with all registered searchers.
     pub fn new() -> Self {
         SearchService {
-            searchers: crate::searcher::all_searchers(),
+            searchers: crate::searchers::all_searchers(),
         }
     }
 

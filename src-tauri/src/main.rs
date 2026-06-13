@@ -2,9 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod backup;
+mod cf_proxy;
 mod citation_parse;
 mod clipboard;
 mod cmd;
+mod cmd_download;
 mod cmd_paper;
 mod config;
 mod download;
@@ -15,7 +17,7 @@ mod manifest;
 mod paper;
 mod paper_search;
 mod screenshot;
-mod searcher;
+mod searchers;
 mod server;
 mod system_ocr;
 mod tray;
@@ -25,6 +27,7 @@ mod window;
 use backup::*;
 use clipboard::*;
 use cmd::*;
+use cmd_download::*;
 use cmd_paper::*;
 use config::*;
 use hotkey::*;
@@ -172,7 +175,9 @@ fn main() {
             open_citation_window,
             get_citation_state,
             test_ruby_path,
-            reinit_ruby
+            reinit_ruby,
+            test_cf_bypass,
+            download_citation_pdf
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

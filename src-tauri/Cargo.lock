@@ -4242,6 +4242,7 @@ dependencies = [
  "tauri-plugin-store",
  "thiserror",
  "tiny_http",
+ "tokio",
  "walkdir",
  "window-shadows",
  "windows 0.58.0",

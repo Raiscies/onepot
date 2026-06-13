@@ -179,6 +179,7 @@ function PaperCardItem({ item }) {
     const [copiedAuthor, setCopiedAuthor] = useState(null);
     const [searchEngineRaw] = useConfig('citation_search_engine', '');
     const searchEngine = searchEngineRaw || 'https://scholar.google.com/scholar?q={query}';
+    const [downloadMsg, setDownloadMsg] = useState('');
 
     const springs = useSpring({
         from: { height: 0 },
@@ -232,7 +233,22 @@ function PaperCardItem({ item }) {
                 </div>
                 <div className='flex gap-0.5'>
                     {p.doi && (
-                        <Button isIconOnly size='sm' variant='light' className='min-w-0 w-6 h-6'>
+                        <Button
+                            isIconOnly
+                            size='sm'
+                            variant='light'
+                            className='min-w-0 w-6 h-6'
+                            onPress={async () => {
+                                setDownloadMsg('Downloading...');
+                                try {
+                                    const path = await invoke('download_citation_pdf', { doi: p.doi, paper: p });
+                                    setDownloadMsg(`Saved: ${path}`);
+                                } catch (e) {
+                                    setDownloadMsg(`Failed: ${e}`);
+                                }
+                                setTimeout(() => setDownloadMsg(''), 3000);
+                            }}
+                        >
                             <MdFileDownload className='text-small' />
                         </Button>
                     )}

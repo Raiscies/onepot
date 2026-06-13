@@ -137,7 +137,7 @@
             },
             "citation": {
                 "label": "文献识别",
-                "title": "文献识别设置",
+                "title": "文献识别",
                 "window_position": "窗口位置",
                 "mouse": "跟随鼠标",
                 "pre_state": "记住位置",
@@ -150,6 +150,17 @@
                 "test_ruby": "测试",
                 "test_open": "测试打开弹窗",
                 "search_engine": "搜索引擎URL"
+            },
+            "download": {
+                "label": "文献下载",
+                "title": "文献下载",
+                "download_dir": "下载目录",
+                "cf_bypass": "Cloudflare 绕过",
+                "cf_host": "服务地址",
+                "cf_port": "服务端口",
+                "cf_test": "测试连接",
+                "cf_test_ok": "CloudflareBypass 服务可用",
+                "cf_test_fail": "CloudflareBypass 服务不可用"
             },
             "recognize": {
                 "label": "文字识别",

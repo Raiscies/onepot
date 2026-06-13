@@ -1,0 +1,34 @@
+{
+    "dl.acm.org": {
+        "bypass": "cloudflare",
+        "url": "https://dl.acm.org/doi/pdf/{doi}"
+    }, 
+    "journals.aps.org": {
+        "bypass": "cloudflare",
+        "url": "https://journals.aps.org/pre/pdf/{doi}"
+    },
+    "arxiv.org": {
+        "origin": "^https://arxiv\\.org/abs/(.+)$",
+        "url": "https://arxiv\\.org/pdf/{origin[1]}"
+    }, 
+    "www.nature.com": {
+        "origin": "^(.+)$", 
+        "url": "{origin[1]}.pdf"
+    }, 
+    "drops.dagstuhl.de": {
+        "scrape": "href=\"(https://drops\\.dagstuhl\\.de/storage/[^\"]+\\.pdf)",
+        "url": "{scrape[1]}" 
+    }, 
+    "epubs.siam.org": {
+        "bypass": "cloudflare", 
+        "url": "https://epubs.siam.org/doi/pdf/{doi}"
+    }, 
+    "link.springer.com": {
+        "bypass": "cloudflare",
+        "url": "https://link.springer.com/content/pdf/{doi}.pdf"
+    }, 
+    "ieeexplore.ieee.org": {
+        "origin": "^https://ieeexplore\\.ieee\\.org/document/(\\d+)",
+        "url": "https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber={origin[1]}"
+    }
+}

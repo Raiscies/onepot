@@ -25,3 +25,5 @@ dist-ssr
 
 TASK_PLAN.md
 pnpm-workspace.yaml
+
+papers/*

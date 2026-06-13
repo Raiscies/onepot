@@ -63,7 +63,10 @@ pub struct SemanticScholarSearcher {
 impl SemanticScholarSearcher {
     pub fn new() -> Self {
         SemanticScholarSearcher {
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .expect("Failed to build Semantic Scholar HTTP client"),
         }
     }
 
