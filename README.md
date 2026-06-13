@@ -1,8 +1,9 @@
 <img width="200px" src="public/icon.svg" align="left"/>
 
-# Pot (派了个萌的翻译器)
+# OnePot (A Fork of Pot, Actively Working)
+> **OnePot**是**Pot**的一个Fork项目, 旨在实现论文文献的便捷解析, 搜索与下载 (同时保留了Pot的所有功能)
 
-> 🌈 一个跨平台的划词翻译软件 ([QQ 频道](https://pd.qq.com/s/akns94e1r))
+> **Pot**是: 🌈 一个跨平台的划词翻译软件 ([QQ 频道](https://pd.qq.com/s/akns94e1r))
 
 ![License](https://img.shields.io/github/license/pot-app/pot-desktop.svg)
 ![Tauri](https://img.shields.io/badge/Tauri-1.6.8-blue?logo=tauri)
