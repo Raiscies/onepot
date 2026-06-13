@@ -108,6 +108,8 @@ fn main() {
             update_tray(app.app_handle(), "".to_string(), "".to_string());
             // Start http server
             start_server();
+            // Init ruby for citation parsing
+            reinit_ruby();
             // Register Global Shortcut
             match register_shortcut("all") {
                 Ok(()) => {}
@@ -168,9 +170,9 @@ fn main() {
             font_list,
             aliyun,
             open_citation_window,
-            citation_search,
             get_citation_state,
-            test_ruby_path
+            test_ruby_path,
+            reinit_ruby
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

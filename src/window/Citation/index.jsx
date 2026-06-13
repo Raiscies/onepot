@@ -319,7 +319,7 @@ function PaperCardItem({ item }) {
                     {/* TLDR (only if no abstract) */}
                     {!p.abstract && p.tldr && (
                         <div
-                            className='text-tiny text-default-500 mt-1.5 italic cursor-pointer hover:text-primary'
+                            className='text-tiny text-default-500 mt-1.5 italic cursor-pointer hover:text-primary max-h-20 overflow-y-auto'
                             onClick={() => writeText(p.tldr)}
                         >
                             {p.tldr}
@@ -329,7 +329,7 @@ function PaperCardItem({ item }) {
                     {/* abstract */}
                     {p.abstract && (
                         <div
-                            className='text-tiny text-default-500 mt-1.5 leading-relaxed cursor-pointer hover:text-primary'
+                            className='text-tiny text-default-500 mt-1.5 leading-relaxed cursor-pointer hover:text-primary max-h-24 overflow-y-auto'
                             onClick={() => writeText(p.abstract)}
                         >
                             {p.abstract}

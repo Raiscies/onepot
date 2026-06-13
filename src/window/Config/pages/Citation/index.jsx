@@ -108,7 +108,10 @@ export default function Citation() {
                             variant='bordered'
                             label={t('config.citation.ruby_path')}
                             value={rubyPath}
-                            onValueChange={setRubyPath}
+                            onValueChange={(v) => {
+                                setRubyPath(v);
+                                invoke('reinit_ruby');
+                            }}
                             className='flex-1'
                             size='sm'
                         />

@@ -2,13 +2,13 @@ use crate::paper::{Paper, ParseResult};
 use regex::Regex;
 use serde_json::Value;
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
+use std::sync::Mutex;
 
 /// Path to the Ruby binary (default: "ruby").
-static RUBY_BIN: OnceLock<String> = OnceLock::new();
+static RUBY_BIN: Mutex<Option<String>> = Mutex::new(None);
 
 /// Path to the Ruby AnyStyle runner script.
-static RUNNER_PATH: OnceLock<String> = OnceLock::new();
+static RUNNER_PATH: Mutex<Option<String>> = Mutex::new(None);
 
 /// Split a multi-citation text into individual citation segments.
 /// Returns a list of `(citation_index, citation_text)` pairs.
@@ -90,7 +90,7 @@ pub fn parse_single(
 
 fn do_parse(citation: &str) -> Result<Paper, String> {
     let runner = get_runner_path()?;
-    let ruby = RUBY_BIN.get().map(|s| s.as_str()).unwrap_or("ruby");
+    let ruby = get_ruby_bin();
 
     let mut output = Command::new(ruby)
         .arg(&runner)
@@ -134,21 +134,26 @@ fn do_parse(citation: &str) -> Result<Paper, String> {
     parse_anystyle_item(item)
 }
 
-/// Set the path to the Ruby binary. Defaults to "ruby" if not set.
+/// Set the path to the Ruby binary. Defaults to "ruby" if empty.
 pub fn set_ruby_bin(path: &str) {
     let bin = if path.is_empty() { "ruby".to_string() } else { path.to_string() };
-    let _ = RUBY_BIN.set(bin);
+    *RUBY_BIN.lock().unwrap() = Some(bin);
 }
 
 /// Set the path to the Ruby AnyStyle runner script.
 pub fn set_runner_path(path: &str) {
-    let _ = RUNNER_PATH.set(path.to_string());
+    *RUNNER_PATH.lock().unwrap() = Some(path.to_string());
+}
+
+fn get_ruby_bin() -> String {
+    RUBY_BIN.lock().unwrap().clone().unwrap_or_else(|| "ruby".to_string())
 }
 
 fn get_runner_path() -> Result<String, String> {
     RUNNER_PATH
-        .get()
-        .cloned()
+        .lock()
+        .unwrap()
+        .clone()
         .ok_or_else(|| "AnyStyle runner path not set".to_string())
 }
 

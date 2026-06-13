@@ -26,6 +26,16 @@ pub struct Paper {
     pub publisher: Option<String>,
     pub url: Option<String>,
 
+    // enrichment fields (from search APIs)
+    #[serde(default)]
+    pub tldr: Option<String>,
+    #[serde(default, rename = "abstract")]
+    pub abstract_: Option<String>,
+    #[serde(default)]
+    pub citation_count: Option<i32>,
+    #[serde(default)]
+    pub ccf_rank: Option<String>,
+
     // display status
     #[serde(default)]
     pub status: PaperStatus,
@@ -48,6 +58,10 @@ impl Paper {
         merge_opt!(self, other, pages);
         merge_opt!(self, other, publisher);
         merge_opt!(self, other, url);
+        merge_opt!(self, other, tldr);
+        merge_opt!(self, other, abstract_);
+        merge_opt!(self, other, citation_count);
+        merge_opt!(self, other, ccf_rank);
     }
 
     pub fn has_doi(&self) -> bool {

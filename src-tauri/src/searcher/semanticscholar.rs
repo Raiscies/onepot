@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 
 const API_URL: &str = "https://api.semanticscholar.org/graph/v1/paper/search/match";
-const FIELDS: &str = "title,authors,year,externalIds,publicationVenue,openAccessPdf";
+const FIELDS: &str = "title,authors,year,externalIds,publicationVenue,openAccessPdf,abstract,tldr,citationCount";
 
 #[derive(Debug, Deserialize)]
 struct SSResponse {
@@ -21,6 +21,11 @@ struct SSPaper {
     external_ids: Option<SSExternalIds>,
     publication_venue: Option<SSVenue>,
     open_access_pdf: Option<SSOpenAccessPdf>,
+    #[serde(default, rename = "abstract")]
+    abstract_: Option<String>,
+    tldr: Option<SSTldr>,
+    #[serde(default)]
+    citation_count: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +49,11 @@ struct SSVenue {
 #[derive(Debug, Deserialize)]
 struct SSOpenAccessPdf {
     url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SSTldr {
+    text: Option<String>,
 }
 
 pub struct SemanticScholarSearcher {
@@ -85,6 +95,9 @@ impl SemanticScholarSearcher {
             pages,
             publisher: None,
             url,
+            tldr: ss.tldr.as_ref().and_then(|t| t.text.clone()),
+            abstract_: ss.abstract_.clone(),
+            citation_count: ss.citation_count,
             ..Default::default()
         }
     }
