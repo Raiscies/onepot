@@ -100,6 +100,20 @@ async fn run_stages(
     // Stage 1: parse
     let mut result = parse_single(citation_text, index, citation_index);
     if is_cancelled(search_id) { return; }
+
+    // If parsing failed or title is empty, report error and skip enrichment
+    let is_parse_error = matches!(result.paper.status, PaperStatus::Error);
+    if is_parse_error || result.paper.title.is_none() {
+        if !is_parse_error {
+            result.paper.status = PaperStatus::Error;
+            result.error_msg = Some("AnyStyle returned empty title".to_string());
+        }
+        emit_update(window, index, "parsed", &result);
+        write_shared_result(app, index, &result);
+        info!("citation_search #{search_id}: paper #{index} parse failed");
+        return;
+    }
+
     result.paper.status = PaperStatus::Ready;
     emit_update(window, index, "parsed", &result);
     write_shared_result(app, index, &result);
@@ -111,6 +125,7 @@ async fn run_stages(
         let search_service = SEARCH_SERVICE.get().unwrap();
         if let Some(best) = search_service.search_all(&result.paper).await.first() {
             result.apply_search_result(&best.paper);
+            info!("citation_search #{search_id}: paper #{index} enriched data: {:?}", result.paper);
         }
         if is_cancelled(search_id) { return; }
         emit_update(window, index, "enriched", &result);

@@ -2,6 +2,9 @@ use crate::paper::{Paper, SearchResult};
 use crate::paper_search::Searcher;
 use async_trait::async_trait;
 use serde::Deserialize;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+use tokio::time::sleep;
 
 const API_URL: &str = "https://api.semanticscholar.org/graph/v1/paper/search/match";
 const FIELDS: &str = "title,authors,year,externalIds,publicationVenue,openAccessPdf,abstract,tldr,citationCount";
@@ -19,6 +22,8 @@ struct SSPaper {
     authors: Vec<SSAuthor>,
     year: Option<i32>,
     external_ids: Option<SSExternalIds>,
+    #[serde(default)]
+    url: Option<String>,
     publication_venue: Option<SSVenue>,
     open_access_pdf: Option<SSOpenAccessPdf>,
     #[serde(default, rename = "abstract")]
@@ -58,6 +63,8 @@ struct SSTldr {
 
 pub struct SemanticScholarSearcher {
     client: reqwest::Client,
+    /// Rate limiter: max 2 requests per second.
+    rate_limiter: Mutex<Option<Instant>>,
 }
 
 impl SemanticScholarSearcher {
@@ -67,6 +74,23 @@ impl SemanticScholarSearcher {
                 .no_proxy()
                 .build()
                 .expect("Failed to build Semantic Scholar HTTP client"),
+            rate_limiter: Mutex::new(None),
+        }
+    }
+
+    /// Enforce max 2 requests per second (500ms gap).
+    async fn rate_limit(&self) {
+        let wait = {
+            let mut last = self.rate_limiter.lock().unwrap();
+            let now = Instant::now();
+            let gap = last.map_or(Duration::ZERO, |prev| {
+                Duration::from_millis(500).saturating_sub(now - prev)
+            });
+            *last = Some(now);
+            gap
+        };
+        if !wait.is_zero() {
+            sleep(wait).await;
         }
     }
 
@@ -85,7 +109,8 @@ impl SemanticScholarSearcher {
 
         let url = doi
             .as_ref()
-            .map(|d| format!("https://doi.org/{d}"));
+            .map(|d| format!("https://doi.org/{d}"))
+            .or_else(|| ss.url.clone());
 
         Paper {
             title: ss.title.clone(),
@@ -106,25 +131,59 @@ impl SemanticScholarSearcher {
     }
 
     async fn search_by_doi(&self, doi: &str) -> Option<SearchResult> {
+        self.rate_limit().await;
         self.query_api(&format!("DOI:{doi}")).await
     }
 
     async fn search_by_title(&self, title: &str) -> Option<SearchResult> {
+        self.rate_limit().await;
         self.query_api(title).await
     }
 
     async fn query_api(&self, query: &str) -> Option<SearchResult> {
-        let resp = self
-            .client
-            .get(API_URL)
-            .query(&[("query", query), ("limit", "3"), ("fields", FIELDS)])
-            .send()
-            .await
-            .ok()?;
+        for attempt in 0..3 {
+            let resp = match self
+                .client
+                .get(API_URL)
+                .query(&[("query", query), ("limit", "3"), ("fields", FIELDS)])
+                .send()
+                .await
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    log::warn!("SemanticScholar request failed for '{query}': {e}");
+                    return None;
+                }
+            };
 
-        let body: SSResponse = resp.json().await.ok()?;
-        let data = body.data?;
-        let best = data.first()?;
+            if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                let delay = Duration::from_secs(1u64 << attempt);
+                log::warn!("SemanticScholar 429 for '{query}', retrying in {delay:?} (attempt {})", attempt + 1);
+                sleep(delay).await;
+                continue;
+            }
+
+            let body: SSResponse = match resp.json().await {
+                Ok(b) => b,
+                Err(e) => {
+                    log::warn!("SemanticScholar JSON parse failed for '{query}': {e}");
+                    return None;
+                }
+            };
+        let data = match body.data {
+            Some(d) => d,
+            None => {
+                log::warn!("SemanticScholar returned no data for '{query}'");
+                return None;
+            }
+        };
+        let best = match data.first() {
+            Some(b) => b,
+            None => {
+                log::warn!("SemanticScholar returned empty data array for '{query}'");
+                return None;
+            }
+        };
         let matched = self.map_paper(best);
 
         let download_url = best
@@ -132,14 +191,17 @@ impl SemanticScholarSearcher {
             .as_ref()
             .and_then(|oa| oa.url.clone());
 
-        Some(SearchResult {
-            paper: matched,
-            source: self.name().to_string(),
-            score: 0.0,
-            download_url,
-            available: true,
-            error: None,
-        })
+        return Some(SearchResult {
+                paper: matched,
+                source: self.name().to_string(),
+                score: 0.0,
+                download_url,
+                available: true,
+                error: None,
+            })
+        }
+        log::warn!("SemanticScholar exhausted retries for '{query}'");
+        None
     }
 }
 

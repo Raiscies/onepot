@@ -16,7 +16,7 @@
         "url": "{origin[1]}.pdf"
     }, 
     "drops.dagstuhl.de": {
-        "scrape": "href=\"(https://drops\\.dagstuhl\\.de/storage/[^\"]+\\.pdf)",
+        "scrape": "href=\"(https://drops\\.dagstuhl\\.de/storage/[^\"]+\\.pdf)\"",
         "url": "{scrape[1]}" 
     }, 
     "epubs.siam.org": {

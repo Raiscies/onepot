@@ -75,7 +75,7 @@ impl Paper {
 pub enum PaperStatus {
     Ready,
     Searching,
-    Error(String),
+    Error,
 }
 
 impl Default for PaperStatus {
@@ -95,6 +95,8 @@ pub struct ParseResult {
     pub citation_index: Option<String>,
     #[serde(default)]
     pub raw_citation: Option<String>,
+    #[serde(default)]
+    pub error_msg: Option<String>,
 }
 
 impl ParseResult {
@@ -108,6 +110,7 @@ impl ParseResult {
             index,
             citation_index: citation_index.map(|s| s.to_string()),
             raw_citation: None,
+            error_msg: None,
         }
     }
 
@@ -115,18 +118,22 @@ impl ParseResult {
     pub fn error(index: usize, raw_citation: &str, error_msg: &str) -> Self {
         ParseResult {
             paper: Paper {
-                status: PaperStatus::Error(error_msg.to_string()),
+                status: PaperStatus::Error,
                 ..Default::default()
             },
             index,
             citation_index: None,
             raw_citation: Some(raw_citation.to_string()),
+            error_msg: Some(error_msg.to_string()),
         }
     }
 
     /// Merge search result into this card's paper, then mark ready.
+    /// Search result is the primary data source; parse result fills in gaps.
     pub fn apply_search_result(&mut self, result: &Paper) {
-        self.paper.merge(result);
+        let mut merged = result.clone();
+        merged.merge(&self.paper);
+        self.paper = merged;
         self.paper.status = PaperStatus::Ready;
     }
 }

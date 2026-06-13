@@ -83,6 +83,7 @@ pub fn parse_single(
             index,
             citation_index: citation_index.map(|s| s.to_string()),
             raw_citation: Some(citation.to_string()),
+            error_msg: None,
         },
         Err(err_msg) => ParseResult::error(index, citation, &err_msg),
     }
@@ -131,7 +132,14 @@ fn do_parse(citation: &str) -> Result<Paper, String> {
         Value::Array(arr) if !arr.is_empty() => &arr[0],
         _ => &items,
     };
-    parse_anystyle_item(item)
+    let paper = parse_anystyle_item(item)?;
+
+    // AnyStyle may return valid JSON but with no useful data
+    if paper.title.is_none() {
+        return Err("AnyStyle returned empty title".to_string());
+    }
+
+    Ok(paper)
 }
 
 /// Set the path to the Ruby binary. Defaults to "ruby" if empty.

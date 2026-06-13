@@ -20,6 +20,23 @@ pub enum DownloadOutcome {
     Failed { reason: String },
 }
 
+impl DownloadOutcome {
+    pub fn status(&self) -> &'static str {
+        match self {
+            DownloadOutcome::Success { .. } => "success",
+            DownloadOutcome::NoHandler { .. } => "no_handler",
+            DownloadOutcome::Failed { .. } => "failed",
+        }
+    }
+
+    pub fn path(&self) -> Option<&str> {
+        match self {
+            DownloadOutcome::Success { path } => Some(path),
+            _ => None,
+        }
+    }
+}
+
 /// Signature of a publisher download handler (async, boxed).
 pub type HandlerFn = Box<dyn Fn(DownloadContext) -> Pin<Box<dyn Future<Output = HandlerResult> + Send>> + Send + Sync>;
 
@@ -97,6 +114,16 @@ impl DownloadService {
         service
     }
 
+    /// Check if a PDF for the given DOI already exists in cache.
+    /// Cleans stale manifest entry if the file was deleted.
+    pub fn check_existing(&mut self, doi: &str) -> Option<PathBuf> {
+        let path = self.manifest.get_and_clean(doi, &self.storage_dir);
+        if path.is_none() {
+            self.manifest.save(&self.manifest_path);
+        }
+        path
+    }
+
     /// Register a publisher handler for a given hostname.
     pub fn register_handler(&mut self, hostname: &str, handler: HandlerFn) {
         self.handlers.insert(hostname.to_string(), handler);
@@ -151,8 +178,9 @@ impl DownloadService {
         meta: &PaperMeta,
         client: &reqwest::Client,
     ) -> DownloadOutcome {
-        // Check if already downloaded
-        if let Some(path) = self.manifest.get(doi, &self.storage_dir) {
+        // Check if already downloaded (also cleans stale entries)
+        if let Some(path) = self.manifest.get_and_clean(doi, &self.storage_dir) {
+            self.manifest.save(&self.manifest_path);
             return DownloadOutcome::Success {
                 path: path.to_string_lossy().to_string(),
             };
@@ -265,6 +293,8 @@ fn build_handler(config: HandlerConfig) -> HandlerFn {
                 Some(u) => u,
                 None => return Ok(None),
             };
+
+            log::info!("Download resolved URL for doi={}: {}", ctx.doi, final_url);
 
             let client = build_client();
             if config.bypass.as_deref() == Some("cloudflare") {

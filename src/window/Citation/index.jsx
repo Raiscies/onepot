@@ -9,6 +9,7 @@ import useMeasure from 'react-use-measure';
 import { Chip } from '@nextui-org/react';
 import { MdFileDownload } from 'react-icons/md';
 import { MdOpenInNew } from 'react-icons/md';
+import { MdPictureAsPdf } from 'react-icons/md';
 import { MdSearch } from 'react-icons/md';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/tauri';
@@ -70,9 +71,7 @@ export default function Citation() {
     const [results, setResults] = useState([]);
     const [hideCitationText] = useConfig('citation_hide_citation_text', false);
     const [hideWindow] = useConfig('citation_hide_window', false);
-    const [autoDlCount] = useConfig('download_auto_count', '0');
-    const [autoOpenPdf] = useConfig('download_auto_open', false);
-    const [autoOpenDoi] = useConfig('download_auto_open_doi', false);
+    const [searchGen, setSearchGen] = useState(0);
 
     // Listen for backend events: citation_init, citation_update
     useEffect(() => {
@@ -84,6 +83,7 @@ export default function Citation() {
             if (data.captured_text) {
                 setCapturedText(data.captured_text);
                 setResults(data.papers || []);
+                setSearchGen((g) => g + 1);
                 if (!hideWindow) {
                     appWindow.show();
                     appWindow.setFocus();
@@ -95,6 +95,7 @@ export default function Citation() {
             const data = JSON.parse(event.payload);
             setCapturedText(data.captured_text || '');
             setResults(data.papers || []);
+            setSearchGen((g) => g + 1);
             if (!hideWindow) {
                 appWindow.show();
                 appWindow.setFocus();
@@ -128,34 +129,12 @@ export default function Citation() {
         return () => unlistenBlur();
     }, [closeOnBlur, pined]);
 
-    // Auto-download: when all papers finish searching and count ≤ threshold
-    const autoDownloadedRef = React.useRef(new Set());
-    useEffect(() => {
-        const count = parseInt(autoDlCount, 10) || 0;
-        if (count <= 0 || results.length === 0) return;
-
-        const searching = results.some((r) => r.paper?.status === 'searching');
-        if (searching) return;
-
-        const parsedCount = results.filter((r) => r.paper?.status !== 'error').length;
-        if (parsedCount > count) return;
-
-        results.forEach((r) => {
-            const doi = r.paper?.doi;
-            if (!doi || autoDownloadedRef.current.has(doi)) return;
-            autoDownloadedRef.current.add(doi);
-            invoke('download_citation_pdf', { doi, paper: r.paper })
-                .then((raw) => {
-                    const outcome = JSON.parse(raw);
-                    if (outcome.status === 'success' && autoOpenPdf) {
-                        open(outcome.path);
-                    } else if (outcome.status !== 'success' && autoOpenDoi) {
-                        open(`https://doi.org/${doi}`);
-                    }
-                })
-                .catch(() => {});
-        });
-    }, [results, autoDlCount, autoOpenPdf, autoOpenDoi]);
+    // Compute whether auto-download should trigger
+    const [autoDlCountRaw] = useConfig('download_auto_count', '0');
+    const autoDlCountGlobal = parseInt(autoDlCountRaw, 10) || 0;
+    const parsedCount = results.filter((r) => r.paper?.status !== 'error' && r.paper?.status !== 'searching').length;
+    const allDone = results.length > 0 && !results.some((r) => r.paper?.status === 'searching');
+    const shouldAutoDownload = allDone && autoDlCountGlobal > 0 && parsedCount <= autoDlCountGlobal;
 
     return (
         <div className='flex flex-col h-screen bg-background'>
@@ -194,42 +173,105 @@ export default function Citation() {
                 )}
             </div>
             <div className='flex-1 overflow-y-auto px-2 pb-2'>
-                {results.map((item) => (
-                    <PaperCardItem key={item.index} item={item} />
+                {[...results]
+                    .sort((a, b) => (a.paper?.status === 'error' ? 1 : 0) - (b.paper?.status === 'error' ? 1 : 0))
+                    .map((item) => (
+                    <PaperCardItem key={`${searchGen}-${item.index}`} item={item} shouldAutoDownload={shouldAutoDownload} />
                 ))}
             </div>
         </div>
     );
 }
 
-function PaperCardItem({ item }) {
+function PaperCardItem({ item, shouldAutoDownload }) {
     const p = item.paper;
     const isError = p.status === 'error';
     const isSearching = p.status === 'searching';
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(isError);
     const [contentRef, bounds] = useMeasure({ scroll: true });
 
     const [copiedTitle, setCopiedTitle] = useState(false);
     const [copiedAuthor, setCopiedAuthor] = useState(null);
     const [searchEngineRaw] = useConfig('citation_search_engine', '');
     const searchEngine = searchEngineRaw || 'https://scholar.google.com/scholar?q={query}';
-    const [downloadState, setDownloadState] = useState('idle'); // idle | downloading | success | no_handler | failed
+    const [downloadState, setDownloadState] = useState('idle');
     const [downloadPath, setDownloadPath] = useState('');
     const [downloadProgress, setDownloadProgress] = useState({ downloaded: 0, total: 0 });
     const [autoOpenPdfCard] = useConfig('download_auto_open', false);
     const [autoOpenDoiCard] = useConfig('download_auto_open_doi', false);
+    const autoDownloadedRef = React.useRef(false);
 
-    // Listen for download progress events
+    /// Perform the actual download. Shared by manual click and auto-download.
+    const doDownload = async () => {
+        setDownloadState('downloading');
+        setDownloadProgress({ downloaded: 0, total: 0 });
+        try {
+            const raw = await invoke('download_citation_pdf', { doi: p.doi, paper: p });
+            const outcome = JSON.parse(raw);
+            if (outcome.status === 'success') {
+                setDownloadState('success');
+                setDownloadPath(outcome.path);
+                if (autoOpenPdfCard) open(outcome.path);
+            } else if (outcome.status === 'no_handler') {
+                setDownloadState('no_handler');
+                toast.error(`No download handler for: ${outcome.host}`);
+                if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
+            } else {
+                setDownloadState('failed');
+                toast.error(outcome.reason || 'Download failed');
+                if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
+            }
+        } catch (e) {
+            setDownloadState('failed');
+            toast.error(`Download error: ${e}`);
+            if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
+        }
+    };
+
+    // Auto-download: parent signals when conditions are met, card executes
+    useEffect(() => {
+        if (!shouldAutoDownload || !p.doi || isError) return;
+        if (autoDownloadedRef.current) return;
+        autoDownloadedRef.current = true;
+        doDownload();
+    }, [shouldAutoDownload, p.doi, isError]);
+
+    // Listen for download progress and finished events
     useEffect(() => {
         if (!p.doi) return;
-        const unlisten = listen('download_progress', (event) => {
+        const unlisteners = [];
+
+        listen('download_progress', (event) => {
             const data = JSON.parse(event.payload);
             if (data.doi === p.doi) {
+                setDownloadState('downloading');
                 setDownloadProgress({ downloaded: data.downloaded, total: data.total });
             }
-        });
-        return () => { unlisten.then((f) => f()); };
-    }, [p.doi]);
+        }).then((f) => unlisteners.push(f));
+
+        listen('download_finished', (event) => {
+            const data = JSON.parse(event.payload);
+            if (data.doi === p.doi) {
+                if (data.status === 'success') {
+                    setDownloadState('success');
+                    setDownloadPath(data.path);
+                } else {
+                    setDownloadState('failed');
+                }
+            }
+        }).then((f) => unlisteners.push(f));
+
+        // Check if PDF already exists in cache on mount
+        if (!isSearching && !isError) {
+            invoke('check_pdf_exists', { doi: p.doi }).then((path) => {
+                if (path) {
+                    setDownloadState('success');
+                    setDownloadPath(path);
+                }
+            });
+        }
+        return () => { unlisteners.forEach((f) => f()); };
+    }, [p.doi, isSearching, isError]);
 
     const springs = useSpring({
         from: { height: 0 },
@@ -253,7 +295,7 @@ function PaperCardItem({ item }) {
     const headerTitle = isSearching
         ? (item.raw_citation || 'Searching...')
         : isError
-        ? 'Parse Error'
+        ? 'Unknown'
         : p.title || 'Untitled';
 
     return (
@@ -289,31 +331,7 @@ function PaperCardItem({ item }) {
                             variant='light'
                             className='min-w-0 w-6 h-6'
                             isDisabled={downloadState === 'downloading'}
-                            onPress={async () => {
-                                setDownloadState('downloading');
-                                setDownloadProgress({ downloaded: 0, total: 0 });
-                                try {
-                                    const raw = await invoke('download_citation_pdf', { doi: p.doi, paper: p });
-                                    const outcome = JSON.parse(raw);
-                                    if (outcome.status === 'success') {
-                                        setDownloadState('success');
-                                        setDownloadPath(outcome.path);
-                                        if (autoOpenPdfCard) open(outcome.path);
-                                    } else if (outcome.status === 'no_handler') {
-                                        setDownloadState('no_handler');
-                                        toast.error(`No download handler for: ${outcome.host}`);
-                                        if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
-                                    } else {
-                                        setDownloadState('failed');
-                                        toast.error(outcome.reason || 'Download failed');
-                                        if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
-                                    }
-                                } catch (e) {
-                                    setDownloadState('failed');
-                                    toast.error(`Download error: ${e}`);
-                                    if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
-                                }
-                            }}
+                            onPress={doDownload}
                         >
                             <MdFileDownload className='text-small' />
                         </Button>
@@ -324,9 +342,18 @@ function PaperCardItem({ item }) {
                             size='sm'
                             variant='light'
                             className='min-w-0 w-6 h-6'
-                            onPress={() => open(downloadPath)}
+                            onPress={async () => {
+                                // Verify file still exists before opening
+                                const path = await invoke('check_pdf_exists', { doi: p.doi });
+                                if (path) {
+                                    open(path);
+                                } else {
+                                    setDownloadState('idle');
+                                    setDownloadPath('');
+                                }
+                            }}
                         >
-                            <MdOpenInNew className='text-small' />
+                            <MdPictureAsPdf className='text-small' />
                         </Button>
                     )}
                     {downloadState === 'no_handler' && (
@@ -356,13 +383,13 @@ function PaperCardItem({ item }) {
                     >
                         <MdSearch className='text-small' />
                     </Button>
-                    {p.doi && (
+                    {(p.doi || p.url) && (
                         <Button
                             isIconOnly
                             size='sm'
                             variant='light'
                             className='min-w-0 w-6 h-6'
-                            onPress={() => open(`https://doi.org/${p.doi}`)}
+                            onPress={() => open(p.doi ? `https://doi.org/${p.doi}` : p.url)}
                         >
                             <MdOpenInNew className='text-small' />
                         </Button>

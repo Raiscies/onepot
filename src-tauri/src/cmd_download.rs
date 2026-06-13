@@ -6,6 +6,7 @@ use crate::manifest::PaperMeta;
 use crate::paper::Paper;
 use once_cell::sync::OnceCell;
 use std::path::PathBuf;
+use tauri::Manager;
 use tokio::sync::Mutex;
 
 /// Global download service instance.
@@ -48,6 +49,20 @@ pub async fn test_cf_bypass(host: String, port: u16) -> Result<bool, String> {
     Ok(cf_proxy::check_cf_bypass(&base_url).await)
 }
 
+/// Check if a PDF for the given DOI already exists in the download cache.
+/// Returns the file path if found, or null.
+#[tauri::command]
+pub async fn check_pdf_exists(doi: String) -> Result<Option<String>, String> {
+    let service = get_download_service();
+    let mut svc = service.lock().await;
+    let path = svc.check_existing(&doi);
+    match &path {
+        Some(p) => log::info!("check_pdf_exists doi={doi}: found at {}", p.display()),
+        None => log::info!("check_pdf_exists doi={doi}: not found"),
+    }
+    Ok(path.map(|p| p.to_string_lossy().to_string()))
+}
+
 /// Download a paper PDF by DOI.
 /// Returns a JSON DownloadOutcome: {status: "success"|"no_handler"|"failed", ...}
 #[tauri::command]
@@ -69,6 +84,14 @@ pub async fn download_citation_pdf(doi: String, paper: Paper) -> Result<String, 
 
     let mut svc = service.lock().await;
     let outcome = svc.download_by_doi(&doi, &meta, &client).await;
+
+    // Emit download_finished event for frontend state sync
+    if let Some(handle) = crate::APP.get() {
+        let _ = handle.emit_all(
+            "download_finished",
+            serde_json::json!({ "doi": doi, "status": outcome.status(), "path": outcome.path() }),
+        );
+    }
 
     serde_json::to_string(&outcome).map_err(|e| format!("Serialization failed: {e}"))
 }

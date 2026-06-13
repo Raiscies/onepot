@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-/// DOI → filename mapping, persisted as JSON.
+/// DOI → filename mapping, persisted as a flat JSON object.
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct DownloadManifest {
     records: HashMap<String, String>,
 }
@@ -19,8 +20,21 @@ impl DownloadManifest {
 
     /// Save manifest to a JSON file.
     pub fn save(&self, path: &Path) {
-        if let Ok(json) = serde_json::to_string_pretty(&self.records) {
+        if let Ok(json) = serde_json::to_string_pretty(self) {
             let _ = std::fs::write(path, json);
+        }
+    }
+
+    /// Look up a DOI and return the stored filename if the file exists.
+    /// Returns None and cleans the stale record if the file is missing.
+    pub fn get_and_clean(&mut self, doi: &str, storage_dir: &Path) -> Option<PathBuf> {
+        let fname = self.records.get(doi)?;
+        let path = storage_dir.join(fname);
+        if path.exists() && path.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+            Some(path)
+        } else {
+            self.records.remove(doi);
+            None
         }
     }
 
