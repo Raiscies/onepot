@@ -70,6 +70,9 @@ export default function Citation() {
     const [results, setResults] = useState([]);
     const [hideCitationText] = useConfig('citation_hide_citation_text', false);
     const [hideWindow] = useConfig('citation_hide_window', false);
+    const [autoDlCount] = useConfig('download_auto_count', '0');
+    const [autoOpenPdf] = useConfig('download_auto_open', false);
+    const [autoOpenDoi] = useConfig('download_auto_open_doi', false);
 
     // Listen for backend events: citation_init, citation_update
     useEffect(() => {
@@ -124,6 +127,35 @@ export default function Citation() {
         }
         return () => unlistenBlur();
     }, [closeOnBlur, pined]);
+
+    // Auto-download: when all papers finish searching and count ≤ threshold
+    const autoDownloadedRef = React.useRef(new Set());
+    useEffect(() => {
+        const count = parseInt(autoDlCount, 10) || 0;
+        if (count <= 0 || results.length === 0) return;
+
+        const searching = results.some((r) => r.paper?.status === 'searching');
+        if (searching) return;
+
+        const parsedCount = results.filter((r) => r.paper?.status !== 'error').length;
+        if (parsedCount > count) return;
+
+        results.forEach((r) => {
+            const doi = r.paper?.doi;
+            if (!doi || autoDownloadedRef.current.has(doi)) return;
+            autoDownloadedRef.current.add(doi);
+            invoke('download_citation_pdf', { doi, paper: r.paper })
+                .then((raw) => {
+                    const outcome = JSON.parse(raw);
+                    if (outcome.status === 'success' && autoOpenPdf) {
+                        open(outcome.path);
+                    } else if (outcome.status !== 'success' && autoOpenDoi) {
+                        open(`https://doi.org/${doi}`);
+                    }
+                })
+                .catch(() => {});
+        });
+    }, [results, autoDlCount, autoOpenPdf, autoOpenDoi]);
 
     return (
         <div className='flex flex-col h-screen bg-background'>
@@ -184,6 +216,8 @@ function PaperCardItem({ item }) {
     const [downloadState, setDownloadState] = useState('idle'); // idle | downloading | success | no_handler | failed
     const [downloadPath, setDownloadPath] = useState('');
     const [downloadProgress, setDownloadProgress] = useState({ downloaded: 0, total: 0 });
+    const [autoOpenPdfCard] = useConfig('download_auto_open', false);
+    const [autoOpenDoiCard] = useConfig('download_auto_open_doi', false);
 
     // Listen for download progress events
     useEffect(() => {
@@ -264,16 +298,20 @@ function PaperCardItem({ item }) {
                                     if (outcome.status === 'success') {
                                         setDownloadState('success');
                                         setDownloadPath(outcome.path);
+                                        if (autoOpenPdfCard) open(outcome.path);
                                     } else if (outcome.status === 'no_handler') {
                                         setDownloadState('no_handler');
                                         toast.error(`No download handler for: ${outcome.host}`);
+                                        if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
                                     } else {
                                         setDownloadState('failed');
                                         toast.error(outcome.reason || 'Download failed');
+                                        if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
                                     }
                                 } catch (e) {
                                     setDownloadState('failed');
                                     toast.error(`Download error: ${e}`);
+                                    if (autoOpenDoiCard) open(`https://doi.org/${p.doi}`);
                                 }
                             }}
                         >

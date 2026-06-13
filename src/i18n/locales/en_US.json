@@ -160,7 +160,10 @@
                 "cf_port": "Server Port",
                 "cf_test": "Test Connection",
                 "cf_test_ok": "CloudflareBypass service is available",
-                "cf_test_fail": "CloudflareBypass service is unavailable"
+                "cf_test_fail": "CloudflareBypass service is unavailable",
+                "auto_download_count": "Auto-download when papers ≤ N (0=off)",
+                "auto_open_pdf": "Auto-open file after download",
+                "auto_open_doi": "Auto-open link on download failure"
             },
             "recognize": {
                 "label": "Recognize",

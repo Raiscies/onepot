@@ -15,6 +15,9 @@ import { invoke } from '@tauri-apps/api';
 
 export default function Download() {
     const [downloadDir, setDownloadDir] = useConfig('download_dir', '');
+    const [autoDownloadCount, setAutoDownloadCount] = useConfig('download_auto_count', '0');
+    const [autoOpenPdf, setAutoOpenPdf] = useConfig('download_auto_open', false);
+    const [autoOpenDoi, setAutoOpenDoi] = useConfig('download_auto_open_doi', false);
     const [cfHost, setCfHost] = useConfig('citation_cf_host', '');
     const [cfPort, setCfPort] = useConfig('citation_cf_port', '');
     const [cfStatus, setCfStatus] = React.useState('');
@@ -74,6 +77,30 @@ export default function Download() {
                         <div className='text-tiny text-default-500 mt-1 whitespace-pre-wrap'>
                             {cfStatus}
                         </div>
+                    )}
+                </div>
+                <div className='config-item mt-4 pt-3 border-t border-divider'>
+                    <h3 className='my-auto mx-0 shrink-0 whitespace-nowrap pr-2'>{t('config.download.auto_download_count')}</h3>
+                    <Input
+                        variant='bordered'
+                        type='number'
+                        value={autoDownloadCount}
+                        onValueChange={(v) => setAutoDownloadCount(v)}
+                        className='w-24'
+                        size='sm'
+                        min={0}
+                    />
+                </div>
+                <div className='config-item'>
+                    <h3 className='my-auto mx-0'>{t('config.download.auto_open_pdf')}</h3>
+                    {autoOpenPdf !== null && (
+                        <Switch isSelected={autoOpenPdf} onValueChange={(v) => setAutoOpenPdf(v)} />
+                    )}
+                </div>
+                <div className='config-item'>
+                    <h3 className='my-auto mx-0'>{t('config.download.auto_open_doi')}</h3>
+                    {autoOpenDoi !== null && (
+                        <Switch isSelected={autoOpenDoi} onValueChange={(v) => setAutoOpenDoi(v)} />
                     )}
                 </div>
             </CardBody>

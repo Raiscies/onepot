@@ -160,7 +160,10 @@
                 "cf_port": "服务端口",
                 "cf_test": "测试连接",
                 "cf_test_ok": "CloudflareBypass 服务可用",
-                "cf_test_fail": "CloudflareBypass 服务不可用"
+                "cf_test_fail": "CloudflareBypass 服务不可用",
+                "auto_download_count": "文献数 ≤ 此值时自动下载（0=关闭）",
+                "auto_open_pdf": "下载完成后打开文件",
+                "auto_open_doi": "下载失败时打开文献链接"
             },
             "recognize": {
                 "label": "文字识别",
