@@ -1,6 +1,6 @@
 <img width="200px" src="public/icon.svg" align="left"/>
 
-# OnePot (A Fork of Pot, Actively Working)
+# OnePot (Actively Working)
 > **OnePot**是**Pot**的一个Fork项目, 旨在实现论文文献的便捷解析, 搜索与下载 (同时保留了Pot的所有功能)
 
 > **Pot**是: 🌈 一个跨平台的划词翻译软件 ([QQ 频道](https://pd.qq.com/s/akns94e1r))
@@ -426,18 +426,22 @@ pnpm >= 8.5.0
 
 Rust >= 1.80.0
 
+Ruby >= 4.0.5 (For AnyStyle)
+
+Python >= 3.12 (For Cloudflare Bypasser)
+
 ### 开始编译
 
 1. Clone 仓库
 
     ```bash
-    git clone https://github.com/pot-app/pot-desktop.git
+    git clone https://github.com/Raiscies/onepot.git
     ```
 
 2. 安装依赖
 
     ```bash
-    cd pot-desktop
+    cd onepot
     pnpm install
     ```
 
@@ -447,16 +451,32 @@ Rust >= 1.80.0
     sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev patchelf libxdo-dev libxcb1 libxrandr2 libdbus-1-3
     ```
 
-4. 开发调试
+4. 安装 [Ruby](https://www.ruby-lang.org/) 和 [AnyStyle](https://github.com/inukshuk/anystyle) (用于文献解析):
+    ```bash
+    # Install Ruby via winget
+    winget install RubyInstallerTeam.RubyWithDevKit.4.0.5
+    # Reopen terminal, then install AnyStyle
+    gem install anystyle
+    ```
+
+5. 开发调试
 
     ```bash
     pnpm tauri dev # Run the app in development mode
     ```
 
-5. 打包构建
+6. 打包构建
     ```bash
     pnpm tauri build # Build into installation package
     ```
+7. [Cloudflare 绕过](https://github.com/sarperavci/CloudflareBypassForScraping): 文献下载功能假定你的网络环境已经越过付费墙 (例如校园网). 为了能够顺利下载文献, 需要一个 Cloudflare Bypasser 路由: 
+    ```bash
+        git clone https://github.com/sarperavci/CloudflareBypassForScraping.git
+        cd CloudflareBypassForScraping
+        pip install -r server_requirements.txt
+        python server.py --host 127.0.0.1 --port 8000
+    ```
+
 
 <div align="center">
 
