@@ -2,13 +2,32 @@ use crate::paper::{Paper, SearchResult};
 use crate::paper_search::Searcher;
 use async_trait::async_trait;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
+use once_cell::sync::Lazy;
+use regex::Regex;
 
 const API_URL: &str = "https://api.semanticscholar.org/graph/v1/paper/search/match";
 const FIELDS: &str = "title,authors,year,externalIds,publicationVenue,url,openAccessPdf,abstract,tldr,citationCount";
 
+/// Regex to strip trailing digits from DBLP URIs.
+static FORMAT_DBLP_URI: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\w+/\w+)(?:/[\w\-]+)?$").unwrap());
+static CCF_RANK_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    let json_str = include_str!("../../resources/ccfrank/dblp_uri_to_rank.json");
+    #[derive(Deserialize)]
+    struct CcfEntry {
+        rank: String,
+        #[allow(dead_code)]
+        venue: String,
+        #[allow(dead_code)]
+        abbr: String,
+    }
+    let raw: HashMap<String, CcfEntry> =
+        serde_json::from_str(json_str).expect("Failed to parse dblp_uri_to_rank.json");
+    raw.into_iter().map(|(k, v)| (k, v.rank)).collect()
+});
 #[derive(Debug, Deserialize)]
 struct SSResponse {
     data: Option<Vec<SSPaper>>,
@@ -44,6 +63,8 @@ struct SSExternalIds {
     doi: Option<String>,
     #[serde(rename = "ArXiv")]
     arxiv: Option<String>,
+    #[serde(rename = "DBLP")]
+    dblp: Option<String>
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,6 +117,27 @@ impl SemanticScholarSearcher {
         }
     }
 
+    
+    /// Look up CCF rank by DBLP URI. Trailing digits are stripped before lookup
+    /// since Semantic Scholar appends them (e.g. /journals/tocs/tocs123 → /journals/tocs/tocs).
+    fn resolve_ccf_rank(&self, ss: &SSPaper) -> Option<String> {
+        let dblp_uri = ss
+            .external_ids
+            .as_ref()
+            .and_then(|ids| ids.dblp.clone());
+        let key = dblp_uri.as_deref().map(|uri| FORMAT_DBLP_URI.replace(uri, "/$1").to_string());
+        let rank = key.as_deref().and_then(|k| CCF_RANK_MAP.get(k).cloned());
+        log::debug!(
+            "CCF lookup: dblp_uri={:?} -> key={:?} -> rank={:?}",
+            dblp_uri, key, rank
+        );
+        if dblp_uri.is_some() {
+            Some(rank.unwrap_or_else(|| "N".to_string()))
+        } else {
+            None
+        }
+    }
+
     fn map_paper(&self, ss: &SSPaper) -> Paper {
         let authors: Vec<String> = ss.authors.iter().map(|a| a.name.clone()).collect();
 
@@ -110,7 +152,7 @@ impl SemanticScholarSearcher {
             .and_then(|ids| ids.arxiv.clone());
 
         let venue = ss.publication_venue.as_ref();
-        let journal = venue.and_then(|v| v.name.clone());
+        let venue_name = venue.and_then(|v| v.name.clone());
         let volume = venue.and_then(|v| v.volume.clone());
         let pages = venue.and_then(|v| v.pages.clone());
 
@@ -120,12 +162,14 @@ impl SemanticScholarSearcher {
             .or_else(|| arxiv_id.as_ref().map(|id| format!("https://arxiv.org/abs/{id}")))
             .or_else(|| ss.url.clone());
 
+        let ccf_rank = self.resolve_ccf_rank(ss);
+
         Paper {
             title: ss.title.clone(),
             authors,
             year: ss.year,
             doi,
-            journal,
+            venue: venue_name,
             volume,
             issue: None,
             pages,
@@ -134,6 +178,7 @@ impl SemanticScholarSearcher {
             tldr: ss.tldr.as_ref().and_then(|t| t.text.clone()),
             abstract_: ss.abstract_.clone(),
             citation_count: ss.citation_count,
+            ccf_rank,
             ..Default::default()
         }
     }
@@ -211,6 +256,7 @@ impl SemanticScholarSearcher {
         log::warn!("SemanticScholar exhausted retries for '{query}'");
         None
     }
+
 }
 
 #[async_trait]

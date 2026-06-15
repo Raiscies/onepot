@@ -1,4 +1,22 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Inline the embedded CCF rank JSON. Requires the `once_cell` dependency.
+use once_cell::sync::Lazy;
+
+/// CCF rank lookup table: venue full name → rank ("A"|"B"|"C"|"P").
+static CCF_RANK_MAP: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    let json_str = include_str!("../resources/ccfrank/venue_to_rank.json");
+    #[derive(Deserialize)]
+    struct CcfEntry {
+        rank: String,
+        #[allow(dead_code)]
+        abbr: String,
+    }
+    let raw: HashMap<String, CcfEntry> =
+        serde_json::from_str(json_str).expect("Failed to parse venue_to_rank.json");
+    raw.into_iter().map(|(k, v)| (k, v.rank)).collect()
+});
 
 /// Merges an Option field: if self is None and other is Some, copy from other.
 macro_rules! merge_opt {
@@ -18,13 +36,14 @@ pub struct Paper {
     pub year: Option<i32>,
     pub doi: Option<String>,
 
-    // source / venue
-    pub journal: Option<String>,
+    // source
+    pub venue: Option<String>,
     pub volume: Option<String>,
     pub issue: Option<String>,
     pub pages: Option<String>,
     pub publisher: Option<String>,
     pub url: Option<String>,
+    
 
     // enrichment fields (from search APIs)
     #[serde(default)]
@@ -52,7 +71,7 @@ impl Paper {
         }
         merge_opt!(self, other, year);
         merge_opt!(self, other, doi);
-        merge_opt!(self, other, journal);
+        merge_opt!(self, other, venue);
         merge_opt!(self, other, volume);
         merge_opt!(self, other, issue);
         merge_opt!(self, other, pages);
@@ -66,6 +85,18 @@ impl Paper {
 
     pub fn has_doi(&self) -> bool {
         self.doi.as_ref().map_or(false, |d| !d.is_empty())
+    }
+
+    /// Resolve CCF rank from the paper's venue name.
+    /// Sets `ccf_rank` to "A", "B", "C", "P" (preprint), or "N" (not found).
+    /// If venue is empty, leaves ccf_rank unchanged.
+    pub fn resolve_ccf_rank(&mut self) {
+        let venue = match &self.venue {
+            Some(v) if !v.trim().is_empty() => v.trim(),
+            _ => return, // venue is empty, keep ccf_rank as-is
+        };
+        let rank = CCF_RANK_MAP.get(venue).cloned().unwrap_or_else(|| "N".to_string());
+        self.ccf_rank = Some(rank);
     }
 }
 
@@ -134,6 +165,10 @@ impl ParseResult {
         let mut merged = result.clone();
         merged.merge(&self.paper);
         self.paper = merged;
+        // Fall back to venue-based lookup if DBLP didn't yield a rank or only got preprint
+        if self.paper.ccf_rank.is_none() || self.paper.ccf_rank.as_deref() == Some("P") {
+            self.paper.resolve_ccf_rank();
+        }
         self.paper.status = PaperStatus::Ready;
     }
 }

@@ -236,7 +236,7 @@ fn parse_anystyle_item(item: &Value) -> Result<Paper, String> {
         paper.title = Some(url.to_string());
     }
 
-    map_str_field!(item, paper, "container-title", journal);
+    map_str_field!(item, paper, "container-title", venue);
     map_str_field!(item, paper, "volume", volume);
     map_str_field!(item, paper, "issue", issue);
     map_str_field!(item, paper, "page", pages);

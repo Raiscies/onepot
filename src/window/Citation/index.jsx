@@ -439,25 +439,36 @@ function PaperCardItem({ item, shouldAutoDownload }) {
                         </div>
                     )}
 
-                    {/* journal / venue + CCF rank */}
-                    {(p.journal || p.volume || p.pages || p.ccf_rank) && (
+                    {/* venue / venue + CCF rank */}
+                    {(p.venue || p.volume || p.pages || p.ccf_rank) && (
                         <div className='flex items-center justify-between gap-2 mb-1'>
                             <div
                                 className='text-tiny text-default-400 cursor-pointer hover:text-primary'
                                 onClick={() => {
-                                    const parts = [p.journal, p.volume && `vol. ${p.volume}`, p.pages && `pp. ${p.pages}`].filter(Boolean);
+                                    const parts = [p.venue, p.volume && `vol. ${p.volume}`, p.pages && `pp. ${p.pages}`].filter(Boolean);
                                     if (parts.length) writeText(parts.join(', '));
                                 }}
                             >
-                                {[p.journal, p.volume && `vol. ${p.volume}`, p.pages && `pp. ${p.pages}`]
+                                {[p.venue, p.volume && `vol. ${p.volume}`, p.pages && `pp. ${p.pages}`]
                                     .filter(Boolean)
                                     .join(', ')}
                             </div>
-                            {p.ccf_rank && (
-                                <Chip size='sm' variant='flat' color='warning' className='text-tiny h-5 shrink-0'>
-                                    CCF-{p.ccf_rank}
-                                </Chip>
-                            )}
+                            {(() => {
+                                const rank = p.ccf_rank;
+                                if (!rank) return null;
+                                const config = {
+                                    A: { color: 'danger', label: 'CCF-A' },
+                                    B: { color: 'warning', label: 'CCF-B' },
+                                    C: { color: 'success', label: 'CCF-C' },
+                                    P: { color: 'default', label: 'Preprint' },
+                                }[rank];
+                                if (!config) return null;
+                                return (
+                                    <Chip size='sm' variant='flat' color={config.color} className='text-tiny h-5 shrink-0'>
+                                        {config.label}
+                                    </Chip>
+                                );
+                            })()}
                         </div>
                     )}
 
