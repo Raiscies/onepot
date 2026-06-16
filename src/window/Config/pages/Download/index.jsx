@@ -8,7 +8,7 @@ import { Dropdown } from '@nextui-org/react';
 import { Switch } from '@nextui-org/react';
 import { Button } from '@nextui-org/react';
 import { Card } from '@nextui-org/react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 import { useConfig } from '../../../../hooks/useConfig';
 import { invoke } from '@tauri-apps/api';
@@ -22,6 +22,13 @@ export default function Download() {
     const [cfPort, setCfPort] = useConfig('citation_cf_port', '');
     const [cfStatus, setCfStatus] = React.useState('');
     const { t } = useTranslation();
+
+    // Sync CF bypass config to backend on change
+    useEffect(() => {
+        if (cfHost === null || cfPort === null) return;
+        const port = parseInt(cfPort, 10) || 8000;
+        invoke('update_cf_config', { host: cfHost || '127.0.0.1', port });
+    }, [cfHost, cfPort]);
 
     return (
         <Card>
@@ -44,6 +51,7 @@ export default function Download() {
                         <Input
                             variant='bordered'
                             label={t('config.download.cf_host')}
+                            placeholder='127.0.0.1'
                             value={cfHost}
                             onValueChange={(v) => setCfHost(v)}
                             className='flex-1'
@@ -52,6 +60,7 @@ export default function Download() {
                         <Input
                             variant='bordered'
                             label={t('config.download.cf_port')}
+                            placeholder='8000'
                             value={cfPort}
                             onValueChange={(v) => setCfPort(v)}
                             className='w-24'

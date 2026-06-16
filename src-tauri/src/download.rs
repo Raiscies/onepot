@@ -114,6 +114,12 @@ impl DownloadService {
         service
     }
 
+    /// Update the CF bypass base URL at runtime without restart.
+    pub fn update_cf_base_url(&mut self, host: &str, port: u16) {
+        self.cf_base_url = crate::cf_proxy::normalize_base_url(host, port);
+        log::info!("CF bypass URL updated to {}", self.cf_base_url);
+    }
+
     /// Check if a PDF for the given DOI already exists in cache.
     /// Cleans stale manifest entry if the file was deleted.
     pub fn check_existing(&mut self, doi: &str) -> Option<PathBuf> {

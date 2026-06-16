@@ -42,6 +42,15 @@ fn get_download_service() -> &'static Mutex<DownloadService> {
     })
 }
 
+/// Update CF bypass config at runtime without restart.
+#[tauri::command]
+pub async fn update_cf_config(host: String, port: u16) -> Result<(), String> {
+    let service = get_download_service();
+    let mut svc = service.lock().await;
+    svc.update_cf_base_url(&host, port);
+    Ok(())
+}
+
 /// Test if the CloudflareBypass service is reachable.
 #[tauri::command]
 pub async fn test_cf_bypass(host: String, port: u16) -> Result<bool, String> {

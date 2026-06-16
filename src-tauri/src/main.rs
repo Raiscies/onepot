@@ -181,7 +181,8 @@ fn main() {
             reinit_ruby,
             test_cf_bypass,
             download_citation_pdf,
-            check_pdf_exists
+            check_pdf_exists,
+            update_cf_config,
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())
