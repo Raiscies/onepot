@@ -21,6 +21,7 @@ mod searchers;
 mod server;
 mod system_ocr;
 mod tray;
+#[cfg(feature = "updater")]
 mod updater;
 mod window;
 
@@ -42,11 +43,13 @@ use tauri::api::notification::Notification;
 use tauri::Manager;
 use tauri_plugin_log::LogTarget;
 use tray::*;
+#[cfg(feature = "updater")]
 use updater::check_update;
 use window::config_window;
 use window::get_citation_state;
 use window::open_citation_window;
 use window::test_ruby_path;
+#[cfg(feature = "updater")]
 use window::updater_window;
 
 // Global AppHandle
@@ -132,6 +135,7 @@ fn main() {
                 None => {}
             }
             // Check Update
+            #[cfg(feature = "updater")]
             check_update(app.handle());
             if let Some(engine) = get("translate_detect_engine") {
                 if engine.as_str().unwrap() == "local" {
@@ -164,7 +168,6 @@ fn main() {
             open_devtools,
             register_shortcut_by_frontend,
             update_tray,
-            updater_window,
             screenshot,
             lang_detect,
             webdav,

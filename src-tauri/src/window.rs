@@ -401,6 +401,7 @@ pub fn ocr_translate() {
     }
 }
 
+#[cfg(feature = "updater")]
 #[tauri::command(async)]
 pub fn updater_window() {
     let (window, _exists) = build_window("updater", "Updater");
@@ -413,12 +414,22 @@ pub fn updater_window() {
 
 /// Hotkey handler: capture text, build window, delegate to pipeline.
 pub fn citation_selection() {
+    use mouse_position::mouse_position::{Mouse, Position};
     use selection::get_text;
 
     let text = get_text();
     if text.trim().is_empty() {
         return;
     }
+
+    // Mouse physical position for "mouse" mode
+    let mut mouse_position = match Mouse::get_mouse_position() {
+        Mouse::Position { x, y } => Position { x, y },
+        Mouse::Error => {
+            warn!("Mouse position not found, using (0, 0) as default");
+            Position { x: 0, y: 0 }
+        }
+    };
 
     let app_handle = APP.get().unwrap();
 
@@ -428,33 +439,84 @@ pub fn citation_selection() {
 
     // Build or reuse window
     let (window, exists) = build_window("citation", "Citation");
-    if !exists {
-        let always_on_top = crate::config::get("citation_always_on_top")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        window.set_always_on_top(always_on_top).unwrap();
-        window.set_min_size(Some(tauri::LogicalSize::new(300.0, 200.0))).unwrap();
-        window.set_size(tauri::LogicalSize::new(400.0, 500.0)).unwrap();
+    if exists {
+        return;
     }
-    if !exists
-        || crate::config::get("citation_window_position")
-            .and_then(|v| v.as_str().map(|s| s.to_string()))
-            .unwrap_or("mouse".to_string())
-            != "mouse"
-    {
-        let dpi = window.current_monitor().unwrap().unwrap().scale_factor();
-        let pos_x = crate::config::get("citation_window_position_x")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(0);
-        let pos_y = crate::config::get("citation_window_position_y")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(0);
-        window
-            .set_position(tauri::PhysicalPosition::new(
-                (pos_x as f64) * dpi,
-                (pos_y as f64) * dpi,
-            ))
-            .unwrap();
+
+    let always_on_top = crate::config::get("citation_always_on_top")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    window.set_always_on_top(always_on_top).unwrap();
+
+    let width = crate::config::get("citation_window_width")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(400);
+    let height = crate::config::get("citation_window_height")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(500);
+
+    let monitor = window.current_monitor().unwrap().unwrap();
+    let dpi = monitor.scale_factor();
+
+    window.set_min_size(Some(tauri::LogicalSize::new(300.0, 200.0))).unwrap();
+    window
+        .set_size(tauri::PhysicalSize::new(
+            (width as f64) * dpi,
+            (height as f64) * dpi,
+        ))
+        .unwrap();
+
+    let position_type = crate::config::get("citation_window_position")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| "mouse".to_string());
+
+    match position_type.as_str() {
+        "mouse" => {
+            let monitor_size = monitor.size();
+            let monitor_size_width = monitor_size.width as f64;
+            let monitor_size_height = monitor_size.height as f64;
+            let monitor_position = monitor.position();
+            let monitor_position_x = monitor_position.x as f64;
+            let monitor_position_y = monitor_position.y as f64;
+
+            if mouse_position.x as f64 + width as f64 * dpi
+                > monitor_position_x + monitor_size_width
+            {
+                mouse_position.x -= (width as f64 * dpi) as i32;
+                if (mouse_position.x as f64) < monitor_position_x {
+                    mouse_position.x = monitor_position_x as i32;
+                }
+            }
+            if mouse_position.y as f64 + height as f64 * dpi
+                > monitor_position_y + monitor_size_height
+            {
+                mouse_position.y -= (height as f64 * dpi) as i32;
+                if (mouse_position.y as f64) < monitor_position_y {
+                    mouse_position.y = monitor_position_y as i32;
+                }
+            }
+
+            window
+                .set_position(tauri::PhysicalPosition::new(
+                    mouse_position.x,
+                    mouse_position.y,
+                ))
+                .unwrap();
+        }
+        _ => {
+            let pos_x = crate::config::get("citation_window_position_x")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let pos_y = crate::config::get("citation_window_position_y")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            window
+                .set_position(tauri::PhysicalPosition::new(
+                    (pos_x as f64) * dpi,
+                    (pos_y as f64) * dpi,
+                ))
+                .unwrap();
+        }
     }
 
     // Delegate parse + search to cmd_paper
@@ -511,10 +573,22 @@ pub fn test_ruby_path(path: String) -> String {
 #[tauri::command(async)]
 pub fn open_citation_window() {
     let (window, _exists) = build_window("citation", "Citation");
+    let width = crate::config::get("citation_window_width")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(400);
+    let height = crate::config::get("citation_window_height")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(500);
+    let dpi = window.current_monitor().unwrap().unwrap().scale_factor();
     window
-        .set_min_size(Some(tauri::LogicalSize::new(320, 200)))
+        .set_min_size(Some(tauri::LogicalSize::new(320.0, 200.0)))
         .unwrap();
-    window.set_size(tauri::LogicalSize::new(400, 500)).unwrap();
+    window
+        .set_size(tauri::PhysicalSize::new(
+            (width as f64) * dpi,
+            (height as f64) * dpi,
+        ))
+        .unwrap();
     window.show().unwrap();
     window.set_focus().unwrap();
 }

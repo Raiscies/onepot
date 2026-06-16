@@ -1,4 +1,4 @@
-import { appWindow } from '@tauri-apps/api/window';
+import { appWindow, currentMonitor } from '@tauri-apps/api/window';
 import { writeText } from '@tauri-apps/api/clipboard';
 import { open } from '@tauri-apps/api/shell';
 import { useSpring, animated } from '@react-spring/web';
@@ -18,6 +18,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 
 import { useConfig } from '../../hooks';
+import { store } from '../../utils/store';
 import { osType } from '../../utils/env';
 
 /// Deep-merge `src` into `dst`. Missing keys and null values in src are ignored.
@@ -128,6 +129,50 @@ export default function Citation() {
         }
         return () => unlistenBlur();
     }, [closeOnBlur, pined]);
+
+    // Persist window size when remember_window_size is enabled
+    const [rememberWindowSize] = useConfig('citation_remember_window_size', false);
+    useEffect(() => {
+        if (!rememberWindowSize) return;
+        let resizeTimeout;
+        const unlistenResize = listen('tauri://resize', async () => {
+            if (resizeTimeout) clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(async () => {
+                if (appWindow.label === 'citation') {
+                    let size = await appWindow.outerSize();
+                    const monitor = await currentMonitor();
+                    const factor = monitor.scaleFactor;
+                    size = size.toLogical(factor);
+                    await store.set('citation_window_height', parseInt(size.height));
+                    await store.set('citation_window_width', parseInt(size.width));
+                    await store.save();
+                }
+            }, 100);
+        });
+        return () => { unlistenResize.then((f) => f()); };
+    }, [rememberWindowSize]);
+
+    // Persist window position when mode is "pre_state"
+    const [windowPosition] = useConfig('citation_window_position', 'mouse');
+    useEffect(() => {
+        if (windowPosition !== 'pre_state') return;
+        let moveTimeout;
+        const unlistenMove = listen('tauri://move', async () => {
+            if (moveTimeout) clearTimeout(moveTimeout);
+            moveTimeout = setTimeout(async () => {
+                if (appWindow.label === 'citation') {
+                    let position = await appWindow.outerPosition();
+                    const monitor = await currentMonitor();
+                    const factor = monitor.scaleFactor;
+                    position = position.toLogical(factor);
+                    await store.set('citation_window_position_x', parseInt(position.x));
+                    await store.set('citation_window_position_y', parseInt(position.y));
+                    await store.save();
+                }
+            }, 100);
+        });
+        return () => { unlistenMove.then((f) => f()); };
+    }, [windowPosition]);
 
     // Compute whether auto-download should trigger
     const [autoDlCountRaw] = useConfig('download_auto_count', '0');

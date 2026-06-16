@@ -4,6 +4,7 @@ use crate::window::config_window;
 use crate::window::input_translate;
 use crate::window::ocr_recognize;
 use crate::window::ocr_translate;
+#[cfg(feature = "updater")]
 use crate::window::updater_window;
 use log::info;
 use tauri::CustomMenuItem;
@@ -186,6 +187,7 @@ fn on_config_click() {
 }
 
 fn on_check_update_click() {
+    #[cfg(feature = "updater")]
     updater_window();
 }
 fn on_view_log_click(app: &AppHandle) {

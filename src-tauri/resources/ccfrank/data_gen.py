@@ -1,7 +1,7 @@
 import json
 
 '''
-    Source From CCFrank4dblp
+    ccf_rank_list Source From CCFrank4dblp
     MIT License
 
     Copyright (c) 2019-2023 WenyanLiu (https://github.com/WenyanLiu/CCFrank4dblp)
