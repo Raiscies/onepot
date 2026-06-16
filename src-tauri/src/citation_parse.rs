@@ -93,7 +93,14 @@ fn do_parse(citation: &str) -> Result<Paper, String> {
     let runner = get_runner_path()?;
     let ruby = get_ruby_bin();
 
-    let mut output = Command::new(ruby)
+    let mut cmd = Command::new(ruby);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let mut output = cmd
         .arg(&runner)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

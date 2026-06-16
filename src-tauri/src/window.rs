@@ -546,21 +546,37 @@ pub fn test_ruby_path(path: String) -> String {
 
     let ruby = if path.is_empty() { "ruby".to_string() } else { path };
 
+    #[cfg(target_os = "windows")]
+    fn no_window(cmd: &mut Command) {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(target_os = "windows"))]
+    fn no_window(_cmd: &mut Command) {}
+
     // Test 1: can we invoke ruby?
-    let version = match Command::new(&ruby).arg("--version").output() {
-        Ok(out) if out.status.success() => {
-            String::from_utf8_lossy(&out.stdout).trim().to_string()
+    let version = {
+        let mut cmd = Command::new(&ruby);
+        cmd.arg("--version");
+        no_window(&mut cmd);
+        match cmd.output() {
+            Ok(out) if out.status.success() => {
+                String::from_utf8_lossy(&out.stdout).trim().to_string()
+            }
+            _ => return "Ruby not found".to_string(),
         }
-        _ => return "Ruby not found".to_string(),
     };
 
     // Test 2: is anystyle gem available?
-    let anystyle = match Command::new(&ruby)
-        .args(["-e", "require 'anystyle'; puts 'ok'"])
-        .output()
-    {
-        Ok(out) if out.status.success() => true,
-        _ => false,
+    let anystyle = {
+        let mut cmd = Command::new(&ruby);
+        cmd.args(["-e", "require 'anystyle'; puts 'ok'"]);
+        no_window(&mut cmd);
+        match cmd.output() {
+            Ok(out) if out.status.success() => true,
+            _ => false,
+        }
     };
 
     if anystyle {

@@ -115,7 +115,7 @@ fn main() {
             // Start http server
             start_server();
             // Init ruby for citation parsing
-            reinit_ruby();
+            reinit_ruby(app.app_handle());
             // Register Global Shortcut
             match register_shortcut("all") {
                 Ok(()) => {}

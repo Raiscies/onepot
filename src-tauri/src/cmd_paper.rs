@@ -15,12 +15,16 @@ static CITATION_SEARCH_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Call once at startup and when ruby path config changes.
 #[tauri::command]
-pub fn reinit_ruby() {
+pub fn reinit_ruby(app: tauri::AppHandle) {
     let ruby_path = crate::config::get("citation_ruby_path")
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .unwrap_or_default();
     set_ruby_bin(&ruby_path);
-    let _ = set_runner_path("resources/anystyle/runner.rb");
+    let runner_path = app
+        .path_resolver()
+        .resolve_resource("resources/anystyle/runner.rb")
+        .expect("Failed to resolve runner.rb resource");
+    set_runner_path(&runner_path.to_string_lossy());
 }
 
 /// Full pipeline for a citation search.
