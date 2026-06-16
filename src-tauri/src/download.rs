@@ -40,14 +40,24 @@ impl DownloadOutcome {
 /// Signature of a publisher download handler (async, boxed).
 pub type HandlerFn = Box<dyn Fn(DownloadContext) -> Pin<Box<dyn Future<Output = HandlerResult> + Send>> + Send + Sync>;
 
-/// Helper: build a standard reqwest client for handlers.
+/// Helper: build a standard reqwest client without proxy override.
 pub fn build_client() -> reqwest::Client {
     reqwest::Client::builder()
-        .no_proxy()
         .timeout(std::time::Duration::from_secs(120))
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()
         .expect("Failed to build reqwest client")
+}
+
+/// Build a client with the given proxy URL, bypassing system proxy.
+fn build_client_with_proxy(proxy_url: &str) -> reqwest::Client {
+    reqwest::Client::builder()
+        .no_proxy()
+        .proxy(reqwest::Proxy::all(proxy_url).expect("Invalid proxy URL"))
+        .timeout(std::time::Duration::from_secs(120))
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .expect("Failed to build proxied reqwest client")
 }
 
 /// JSON schema for a single publisher handler entry.
@@ -72,7 +82,11 @@ pub struct DownloadContext {
     pub download_dir: std::path::PathBuf,
     pub filename: String,
     /// Base URL of the CF bypass proxy (e.g. "http://127.0.0.1:8000").
-    pub cf_base_url: String,
+    pub cf_base_url: String,    
+    /// Optional HTTP proxy for non-CF downloads (e.g. "http://127.0.0.1:1080").
+    pub proxy_url: Option<String>,
+    /// Also route CF bypass through the HTTP proxy.
+    pub cf_use_proxy: bool,
 }
 
 pub struct DownloadService {
@@ -85,6 +99,8 @@ pub struct DownloadService {
     handlers: HashMap<String, HandlerFn>,
     manifest_path: PathBuf,
     cf_base_url: String,
+    proxy_url: Option<String>,
+    cf_use_proxy: bool,
 }
 
 impl DownloadService {
@@ -105,6 +121,8 @@ impl DownloadService {
             handlers: HashMap::new(),
             manifest_path,
             cf_base_url: cf_base_url.to_string(),
+            proxy_url: None,
+            cf_use_proxy: false,
         };
 
         // Register all publisher handlers from bundled JSON config
@@ -118,6 +136,23 @@ impl DownloadService {
     pub fn update_cf_base_url(&mut self, host: &str, port: u16) {
         self.cf_base_url = crate::cf_proxy::normalize_base_url(host, port);
         log::info!("CF bypass URL updated to {}", self.cf_base_url);
+    }
+
+    /// Update the HTTP proxy for non-CF downloads at runtime.
+    pub fn update_proxy(&mut self, host: &str, port: u16) {
+        if host.is_empty() || port == 0 {
+            self.proxy_url = None;
+            log::info!("Download proxy disabled");
+        } else {
+            self.proxy_url = Some(format!("http://{host}:{port}"));
+            log::info!("Download proxy updated to {}", self.proxy_url.as_ref().unwrap());
+        }
+    }
+
+    /// Set whether CF bypass also routes through the HTTP proxy.
+    pub fn update_cf_use_proxy(&mut self, enable: bool) {
+        self.cf_use_proxy = enable;
+        log::info!("CF bypass use proxy: {enable}");
     }
 
     /// Check if a PDF for the given DOI already exists in cache.
@@ -221,6 +256,8 @@ impl DownloadService {
             download_dir: self.storage_dir.clone(),
             filename: filename.clone(),
             cf_base_url: self.cf_base_url.clone(),
+            proxy_url: self.proxy_url.clone(),
+            cf_use_proxy: self.cf_use_proxy,
         };
 
         // Find handler
@@ -302,8 +339,13 @@ fn build_handler(config: HandlerConfig) -> HandlerFn {
 
             log::info!("Download resolved URL for doi={}: {}", ctx.doi, final_url);
 
-            let client = build_client();
+            // Routing to Cloudflare Bypasser
             if config.bypass.as_deref() == Some("cloudflare") {
+                let client = if ctx.cf_use_proxy {
+                    ctx.proxy_url.as_ref().map(|u| build_client_with_proxy(u)).unwrap_or_else(build_client)
+                } else {
+                    build_client()
+                };
                 return Ok(crate::cf_proxy::download_via_cf(
                     &client,
                     &ctx.cf_base_url,
@@ -315,6 +357,7 @@ fn build_handler(config: HandlerConfig) -> HandlerFn {
                 .await);
             }
 
+            let client = ctx.proxy_url.as_ref().map(|u| build_client_with_proxy(u)).unwrap_or_else(build_client);
             Ok(download_direct(&client, &final_url, &ctx.download_dir, &ctx.filename, &ctx.doi).await)
         }) as Pin<Box<dyn Future<Output = HandlerResult> + Send>>
     })

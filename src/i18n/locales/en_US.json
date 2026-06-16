@@ -73,12 +73,15 @@
                 "transparent": "Transparent Effect",
                 "dev_mode": "Developer Mode",
                 "proxy": {
-                    "title": "Proxy",
+                    "title": "Translation Proxy",
                     "host": "Host",
                     "port": "Port",
                     "username": "Username",
                     "password": "Password",
                     "no_proxy": "No Proxy"
+                },
+                "download_proxy": {
+                    "title": "Paper Download Proxy"
                 },
                 "proxy_change": "The proxy has been changed, Restart the application for the changes to take effect",
                 "proxy_error": "Please fill in the host and port",
@@ -156,12 +159,13 @@
                 "title": "Download",
                 "download_dir": "Download Directory",
                 "cf_bypass": "Cloudflare Bypass",
-                "cf_host": "Server Address (e.g. 127.0.0.1:8000 or https://...)",
+                "cf_host": "Server Address",
                 "cf_port": "Server Port",
                 "cf_test": "Test Connection",
                 "cf_test_ok": "CloudflareBypass service is available",
                 "cf_test_fail": "CloudflareBypass service is unavailable",
-                "auto_download_count": "Auto-download when papers ≤ N (0=off)",
+                "cf_use_proxy": "Use download proxy",
+                "auto_download_count": "Auto-download when papers ≤ N",
                 "auto_open_pdf": "Auto-open file after download",
                 "auto_open_doi": "Auto-open link on download failure"
             },

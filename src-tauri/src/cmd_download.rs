@@ -44,10 +44,20 @@ fn get_download_service() -> &'static Mutex<DownloadService> {
 
 /// Update CF bypass config at runtime without restart.
 #[tauri::command]
-pub async fn update_cf_config(host: String, port: u16) -> Result<(), String> {
+pub async fn update_cf_config(host: String, port: u16, use_proxy: bool) -> Result<(), String> {
     let service = get_download_service();
     let mut svc = service.lock().await;
     svc.update_cf_base_url(&host, port);
+    svc.update_cf_use_proxy(use_proxy);
+    Ok(())
+}
+
+/// Update download HTTP proxy at runtime.
+#[tauri::command]
+pub async fn update_proxy_config(host: String, port: u16) -> Result<(), String> {
+    let service = get_download_service();
+    let mut svc = service.lock().await;
+    svc.update_proxy(&host, port);
     Ok(())
 }
 

@@ -42,6 +42,8 @@ export default function General() {
     const [proxyUsername, setProxyUsername] = useConfig('proxy_username', '');
     const [proxyPassword, setProxyPassword] = useConfig('proxy_password', '');
     const [noProxy, setNoProxy] = useConfig('no_proxy', 'localhost,127.0.0.1');
+    const [downloadProxyHost, setDownloadProxyHost] = useConfig('download_proxy_host', '');
+    const [downloadProxyPort, setDownloadProxyPort] = useConfig('download_proxy_port', '');
     const { t, i18n } = useTranslation();
     const { setTheme } = useTheme();
     const toastStyle = useToastStyle();
@@ -76,6 +78,13 @@ export default function General() {
             setFontList(v);
         });
     }, []);
+
+    // Sync download proxy config to backend
+    useEffect(() => {
+        if (downloadProxyHost === null || downloadProxyPort === null) return;
+        const port = parseInt(downloadProxyPort, 10) || 0;
+        invoke('update_proxy_config', { host: downloadProxyHost || '', port });
+    }, [downloadProxyHost, downloadProxyPort]);
 
     return (
         <>
@@ -594,6 +603,42 @@ export default function General() {
                                 onValueChange={(v) => {
                                     setNoProxy(v);
                                 }}
+                            />
+                        )}
+                    </div>
+                </CardBody>
+            </Card>
+            <Card className='mt-[10px]'>
+                <CardBody>
+                    <h3 className='mb-2'>{t('config.general.download_proxy.title')}</h3>
+                    <div className='config-item'>
+                        {downloadProxyHost !== null && (
+                            <Input
+                                type='url'
+                                variant='bordered'
+                                label={t('config.general.proxy.host')}
+                                startContent={<span>http://</span>}
+                                value={downloadProxyHost}
+                                onValueChange={(v) => setDownloadProxyHost(v)}
+                                className='mr-2'
+                            />
+                        )}
+                        {downloadProxyPort !== null && (
+                            <Input
+                                type='number'
+                                variant='bordered'
+                                label={t('config.general.proxy.port')}
+                                value={downloadProxyPort}
+                                onValueChange={(v) => {
+                                    if (parseInt(v) > 65535) {
+                                        setDownloadProxyPort(65535);
+                                    } else if (parseInt(v) < 0) {
+                                        setDownloadProxyPort('');
+                                    } else {
+                                        setDownloadProxyPort(parseInt(v));
+                                    }
+                                }}
+                                className='ml-2'
                             />
                         )}
                     </div>

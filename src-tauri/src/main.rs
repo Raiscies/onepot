@@ -183,6 +183,7 @@ fn main() {
             download_citation_pdf,
             check_pdf_exists,
             update_cf_config,
+            update_proxy_config,
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())

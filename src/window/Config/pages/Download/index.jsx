@@ -20,15 +20,16 @@ export default function Download() {
     const [autoOpenDoi, setAutoOpenDoi] = useConfig('download_auto_open_doi', false);
     const [cfHost, setCfHost] = useConfig('citation_cf_host', '');
     const [cfPort, setCfPort] = useConfig('citation_cf_port', '');
+    const [cfUseProxy, setCfUseProxy] = useConfig('download_cf_use_proxy', false);
     const [cfStatus, setCfStatus] = React.useState('');
     const { t } = useTranslation();
 
     // Sync CF bypass config to backend on change
     useEffect(() => {
-        if (cfHost === null || cfPort === null) return;
+        if (cfHost === null || cfPort === null || cfUseProxy === null) return;
         const port = parseInt(cfPort, 10) || 8000;
-        invoke('update_cf_config', { host: cfHost || '127.0.0.1', port });
-    }, [cfHost, cfPort]);
+        invoke('update_cf_config', { host: cfHost || '127.0.0.1', port, useProxy: cfUseProxy });
+    }, [cfHost, cfPort, cfUseProxy]);
 
     return (
         <Card>
@@ -46,26 +47,37 @@ export default function Download() {
                     </div>
                 </div>
                 <div className='config-item mt-4 pt-3 border-t border-divider'>
-                    <h3 className='my-auto mx-0 shrink-0 whitespace-nowrap pr-2'>{t('config.download.cf_bypass')}</h3>
-                    <div className='flex items-center gap-2 w-full'>
-                        <Input
+                    <h3>{t('config.download.cf_bypass')}</h3>
+                </div>
+                <div className='config-item'>
+                    <Input
+                            type='url'
                             variant='bordered'
                             label={t('config.download.cf_host')}
                             placeholder='127.0.0.1'
                             value={cfHost}
                             onValueChange={(v) => setCfHost(v)}
-                            className='flex-1'
-                            size='sm'
+                            className='mr-2'
                         />
                         <Input
+                            type='number'
                             variant='bordered'
                             label={t('config.download.cf_port')}
                             placeholder='8000'
                             value={cfPort}
-                            onValueChange={(v) => setCfPort(v)}
-                            className='w-24'
-                            size='sm'
+                            onValueChange={(v) => {
+                                if (parseInt(v) > 65535) {
+                                    setCfPort(65535);
+                                } else if (parseInt(v) < 0) {
+                                    setCfPort('');
+                                } else {
+                                    setCfPort(parseInt(v));
+                                }
+                            }}
+                            className='ml-2'
                         />
+                    </div>
+                    <div className='flex items-center gap-2 mt-2'>
                         <Button
                             size='sm'
                             variant='flat'
@@ -87,7 +99,15 @@ export default function Download() {
                             {cfStatus}
                         </div>
                     )}
-                </div>
+                    <div className='config-item'>
+                        <h3 className='my-auto'>{t('config.download.cf_use_proxy')}</h3>
+                        {cfUseProxy !== null && (
+                            <Switch
+                                isSelected={cfUseProxy}
+                                onValueChange={(v) => setCfUseProxy(v)}
+                            />
+                        )}
+                    </div>
                 <div className='config-item mt-4 pt-3 border-t border-divider'>
                     <h3 className='my-auto mx-0 shrink-0 whitespace-nowrap pr-2'>{t('config.download.auto_download_count')}</h3>
                     <Input

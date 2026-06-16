@@ -73,12 +73,15 @@
                 "transparent": "透明效果",
                 "dev_mode": "开发模式",
                 "proxy": {
-                    "title": "网络代理",
+                    "title": "翻译网络代理",
                     "host": "代理地址",
                     "port": "代理端口",
                     "username": "用户名",
                     "password": "密码",
                     "no_proxy": "不使用代理的地址或IP"
+                },
+                "download_proxy": {
+                    "title": "文献下载网络代理"
                 },
                 "proxy_change": "代理已经改变，重启应用生效",
                 "proxy_error": "请填写代理地址和端口",
@@ -161,7 +164,8 @@
                 "cf_test": "测试连接",
                 "cf_test_ok": "CloudflareBypass 服务可用",
                 "cf_test_fail": "CloudflareBypass 服务不可用",
-                "auto_download_count": "文献数 ≤ 此值时自动下载（0=关闭）",
+                "cf_use_proxy": "使用文献下载网络代理",
+                "auto_download_count": "解析成功的文献 ≤ N 条时自动下载",
                 "auto_open_pdf": "下载完成后打开文件",
                 "auto_open_doi": "下载失败时打开文献链接"
             },
