@@ -40,10 +40,20 @@ pub async fn check_cf_bypass(base_url: &str) -> bool {
 /// The proxy forwards the request to `target_url` with CF bypass cookies.
 ///
 /// Returns `Some(path)` on success, `None` on failure.
+/// 
+/// Real requests being sending to cf-proxy belike: 
+/// curl service_url/path \ 
+///     -H "x-hostname: target_host" \ 
+///     -H "x-proxy: proxy_url"  # if provided
+/// 
 pub async fn download_via_cf(
     client: &reqwest::Client,
-    base_url: &str,
+    // the cf-proxy service url, if hosted on local, then likely 127.0.0.1:8000
+    service_url: &str, 
+    // the target url, that is the web resources we want to request
     target_url: &str,
+    // (optional) the (cascaded) 'proxy' url for cf-proxy, which means cf-proxy perform requests via this proxy if provided
+    proxy_url: Option<&str>,
     doi: &str,
     download_dir: &std::path::Path,
     filename: &str,
@@ -51,18 +61,18 @@ pub async fn download_via_cf(
     // Decompose target_url into host + path for the x-hostname mirror protocol.
     let (target_host, path) = split_url(target_url);
 
-    let proxy_url = format!("{base_url}{path}");
+    let url = format!("{service_url}{path}");
     let dest = download_dir.join(filename);
 
     // Emit indefinite spinner signal (total=0 means indeterminate)
     emit_progress(doi, 0, 0);
 
-    let resp = match client
-        .get(&proxy_url)
-        .header("x-hostname", &target_host)
-        .send()
-        .await
-    {
+    let mut req = client.get(&url).header("x-hostname", &target_host);
+    if let Some(proxy) = proxy_url {
+        req = req.header("x-proxy", proxy);
+    }
+
+    let resp = match req.send().await {
         Ok(r) => r,
         Err(e) => {
             log::warn!("CF bypass request failed: {e}");

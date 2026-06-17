@@ -40,9 +40,10 @@ impl DownloadOutcome {
 /// Signature of a publisher download handler (async, boxed).
 pub type HandlerFn = Box<dyn Fn(DownloadContext) -> Pin<Box<dyn Future<Output = HandlerResult> + Send>> + Send + Sync>;
 
-/// Helper: build a standard reqwest client without proxy override.
+/// Helper: build a standard reqwest client that bypasses system proxy.
 pub fn build_client() -> reqwest::Client {
     reqwest::Client::builder()
+        .no_proxy()
         .timeout(std::time::Duration::from_secs(120))
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()
@@ -339,17 +340,21 @@ fn build_handler(config: HandlerConfig) -> HandlerFn {
 
             log::info!("Download resolved URL for doi={}: {}", ctx.doi, final_url);
 
+            // Never uses System Proxy
+            
             // Routing to Cloudflare Bypasser
             if config.bypass.as_deref() == Some("cloudflare") {
-                let client = if ctx.cf_use_proxy {
-                    ctx.proxy_url.as_ref().map(|u| build_client_with_proxy(u)).unwrap_or_else(build_client)
+                let proxy_url = if ctx.cf_use_proxy {
+                    ctx.proxy_url.as_deref()
                 } else {
-                    build_client()
+                    None
                 };
+                let client = build_client();
                 return Ok(crate::cf_proxy::download_via_cf(
                     &client,
                     &ctx.cf_base_url,
                     &final_url,
+                    proxy_url,
                     &ctx.doi,
                     &ctx.download_dir,
                     &ctx.filename,
