@@ -440,6 +440,8 @@ pub fn citation_selection() {
     // Build or reuse window
     let (window, exists) = build_window("citation", "Citation");
     if exists {
+        // Window already open — re-trigger search with the new text
+        crate::cmd_paper::run_citation_pipeline(&app_handle, &window, &text);
         return;
     }
 
