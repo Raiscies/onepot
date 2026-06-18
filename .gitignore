@@ -27,3 +27,7 @@ TASK_PLAN.md
 pnpm-workspace.yaml
 
 papers/*
+
+.cargo
+.vscode/*
+.github/**

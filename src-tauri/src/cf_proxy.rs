@@ -115,6 +115,44 @@ pub async fn download_via_cf(
     }
 }
 
+/// Fetch page content through the CF bypass proxy without downloading a file.
+/// Returns the response body as a String, or `None` on failure.
+pub async fn fetch_via_cf(
+    client: &reqwest::Client,
+    service_url: &str,
+    target_url: &str,
+    proxy_url: Option<&str>,
+) -> Option<String> {
+    let (target_host, path) = split_url(target_url);
+    let url = format!("{service_url}{path}");
+
+    let mut req = client.get(&url).header("x-hostname", &target_host);
+    if let Some(proxy) = proxy_url {
+        req = req.header("x-proxy", proxy);
+    }
+
+    let resp = match req.send().await {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("CF bypass fetch failed: {e}");
+            return None;
+        }
+    };
+
+    if !resp.status().is_success() {
+        log::warn!("CF bypass fetch returned status {}", resp.status());
+        return None;
+    }
+
+    match resp.text().await {
+        Ok(text) => Some(text),
+        Err(e) => {
+            log::warn!("CF bypass fetch read body failed: {e}");
+            None
+        }
+    }
+}
+
 fn emit_progress(doi: &str, downloaded: u64, total: u64) {
     if let Some(handle) = crate::APP.get() {
         let _ = handle.emit_all(

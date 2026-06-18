@@ -33,7 +33,7 @@ use cmd_paper::*;
 use config::*;
 use hotkey::*;
 use lang_detect::*;
-use log::info;
+use log::{info, LevelFilter};
 use once_cell::sync::OnceCell;
 use screenshot::screenshot;
 use server::*;
@@ -77,6 +77,16 @@ fn main() {
         .plugin(
             tauri_plugin_log::Builder::default()
                 .targets([LogTarget::LogDir, LogTarget::Stdout])
+                .level(log::LevelFilter::Debug)
+                .filter(|metadata| {
+                    !metadata.target().starts_with("scraper")
+                        && !metadata.target().starts_with("html5ever")
+                        && !metadata.target().starts_with("selectors")
+                        && !metadata.target().starts_with("cssparser")
+                        && !metadata.target().starts_with("tao")
+                        && !metadata.target().starts_with("wry")
+                        && !metadata.target().starts_with("webview")
+                })
                 .build(),
         )
         .plugin(tauri_plugin_autostart::init(

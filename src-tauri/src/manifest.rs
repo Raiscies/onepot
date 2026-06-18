@@ -57,7 +57,8 @@ impl DownloadManifest {
 
 /// Build a filename from a pattern using placeholder substitution.
 /// Supported placeholders: {doi}, {title}, {author}, {pubdate}, {downdate}
-pub fn build_filename(pattern: &str, doi: &str, meta: &PaperMeta) -> String {
+pub fn build_filename(pattern: &str, meta: &PaperMeta) -> String {
+    let doi = meta.doi.as_deref().unwrap_or("unknown");
     let safe_doi = doi.replace('/', "_");
     let title = sanitize(&meta.title).replace(char::is_whitespace, " ");
     let title = title.trim().chars().take(80).collect::<String>();

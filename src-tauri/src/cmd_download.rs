@@ -87,13 +87,6 @@ pub async fn check_pdf_exists(doi: String) -> Result<Option<String>, String> {
 #[tauri::command]
 pub async fn download_citation_pdf(doi: String, paper: Paper) -> Result<String, String> {
     let service = get_download_service();
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(std::time::Duration::from_secs(120))
-        .redirect(reqwest::redirect::Policy::limited(10))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
-
     let meta = PaperMeta {
         title: paper.title.clone().unwrap_or_default(),
         authors: paper.authors.clone(),
@@ -102,7 +95,7 @@ pub async fn download_citation_pdf(doi: String, paper: Paper) -> Result<String, 
     };
 
     let mut svc = service.lock().await;
-    let outcome = svc.download_by_doi(&doi, &meta, &client).await;
+    let outcome = svc.download_by_doi(&meta).await;
 
     // Emit download_finished event for frontend state sync
     if let Some(handle) = crate::APP.get() {
