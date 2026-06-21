@@ -6,12 +6,12 @@
 | Springer | `link.springer.com` | Cloudflare | `/content/pdf/{doi}.pdf` | ✅ |
 | SIAM | `epubs.siam.org` | Cloudflare | `/doi/pdf/{doi}?download=true` | ✅ |
 | APS | `journals.aps.org` | Cloudflare |`/pre/pdf/{doi}` | ✅ |
-| Elsevier | `linkinghub.elsevier.com` | Cloudflare | scrape from page | ✅ |
-| Dagstuhl | `drops.dagstuhl.de` | None | scrape from page | ✅ |
+| Dagstuhl | `drops.dagstuhl.de` | None | scrapes from page | ✅ |
 | IEEE | `ieeexplore.ieee.org` | None | `/stampPDF/getPDF.jsp?arnumber={id}` | ✅ |
 | Nature | `www.nature.com` | None | `/articles/{id}.pdf` | ✅ |
 | ArXiv | `arxiv.org` | None | `/pdf/{id}` | ✅ |
 | Febs | `febs.onlinelibrary.wiley.com` | Cloudflare | `/doi/pdfdirect/{doi}` | ✅ |
+| Elsevier | `linkinghub.elsevier.com` | Cloudflare | scrapes from page, solves JS challenge | ❌ |
 | Sage | `journals.sagepub.com` | Cloudflare | tokenized, needs headless | ❌ |
 | IOP | `iopscience.iop.org` | reCAPTCHA | `/article/{doi}/pdf` | ❌ |
 
@@ -40,10 +40,6 @@
     -> `https://journals.aps.org/pre/abstract/10.1103/PhysRevE.76.056709` \
     -> `https://journals.aps.org/pre/pdf/10.1103/PhysRevE.76.056709`
 
-- **linkinghub.elsevier.com**: `10.1016/J.PHYSA.2014.05.073` \
-    -> `https://linkinghub.elsevier.com/retrieve/pii/S152659002400350X` \
-    -> `https://www.sciencedirect.com/science/article/pii/S152659002400350X?via%3Dihub` \
-    -> Scrape: `a.link-button[href]@href` 
 
 
 - **febs.onlinelibrary.wiley.com**: `10.1016/j.febslet.2009.12.039` \
@@ -52,10 +48,16 @@
 
 **Difficult:**
 
-- **Sage**: `10.1068/b306` — tokenized, needs headless browser
-- **IOP**: `10.1088/1755-1315/526/1/012190` — reCAPTCHA redirect \
+- **journals.sagepub.com**: `10.1068/b306` — tokenized, needs headless browser
+- **iopscience.iop.org**: `10.1088/1755-1315/526/1/012190` — reCAPTCHA redirect \
     -> `https://iopscience.iop.org/article/10.1088/1755-1315/526/1/012190` \
     -> `https://iopscience.iop.org/article/10.1088/1755-1315/526/1/012190/pdf`
+
+- **linkinghub.elsevier.com**: `10.1016/J.PHYSA.2014.05.073` \
+    -> `https://linkinghub.elsevier.com/retrieve/pii/S152659002400350X` \
+    -> `https://www.sciencedirect.com/science/article/pii/S152659002400350X?via%3Dihub` \
+    -> Scrape: `a.link-button[href]@href` \
+    -> Solves JS Challenge, and follow redirect
 
 ## TODO
 
