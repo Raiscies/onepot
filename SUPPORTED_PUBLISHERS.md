@@ -10,7 +10,7 @@
 | IEEE | `ieeexplore.ieee.org` | None | `/stampPDF/getPDF.jsp?arnumber={id}` | ✅ |
 | Nature | `www.nature.com` | None | `/articles/{id}.pdf` | ✅ |
 | ArXiv | `arxiv.org` | None | `/pdf/{id}` | ✅ |
-| Febs | `febs.onlinelibrary.wiley.com` | Cloudflare | `/doi/pdfdirect/{doi}` | ✅ |
+| Wiley | `*.onlinelibrary.wiley.com` | Cloudflare | `/doi/pdfdirect/{doi}` | ✅ |
 | Elsevier | `linkinghub.elsevier.com` | Cloudflare | scrapes from page, solves JS challenge | ❌ |
 | Sage | `journals.sagepub.com` | Cloudflare | tokenized, needs headless | ❌ |
 | IOP | `iopscience.iop.org` | reCAPTCHA | `/article/{doi}/pdf` | ❌ |
@@ -42,7 +42,7 @@
 
 
 
-- **febs.onlinelibrary.wiley.com**: `10.1016/j.febslet.2009.12.039` \
+- **\*.onlinelibrary.wiley.com**: `10.1016/j.febslet.2009.12.039` \
     -> `https://febs.onlinelibrary.wiley.com/doi/10.1016/j.febslet.2009.12.039` \
     -> `https://febs.onlinelibrary.wiley.com/doi/pdfdirect/10.1016/j.febslet.2009.12.039`
 
