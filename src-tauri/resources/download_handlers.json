@@ -23,10 +23,7 @@
     }, 
     "linkinghub.elsevier.com": {
         "bypass": "cloudflare",
-        "scrape": {
-            "select": "a.link-button[href]@href" 
-        },
-        "url": "{scrape[0]}" 
+        "handler": "elsevier"
     },
     "epubs.siam.org": {
         "bypass": "cloudflare", 

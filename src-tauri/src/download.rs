@@ -3,9 +3,20 @@ use once_cell::sync::{Lazy, OnceCell};
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::time::Instant;
 use tauri::Manager;
+
+use crate::download_handlers;
+use crate::download_handlers::default::{default_handler, ExtractMode};
+
+/// Signature of a custom handler function.
+pub type CustomHandlerFn = for<'a> fn(
+    &'a DownloadClient,
+    &'a DownloadContext,
+) -> Pin<Box<dyn Future<Output = HandlerResult> + Send + 'a>>;
 
 /// Default headers applied to every outgoing request.
 static DEFAULT_HEADERS: Lazy<Vec<(&str, &str)>> = Lazy::new(|| {
@@ -48,11 +59,24 @@ impl DownloadOutcome {
 static HANDLER_TABLE: OnceCell<HashMap<&'static str, HandlerEntry>> = OnceCell::new();
 
 /// One entry per publisher hostname.
-struct HandlerEntry {
-    bypass: Option<String>,
-    url_template: String,
-    origin_regex: Option<Regex>,
-    scraped: Option<ScrapedValue>,
+pub(crate) struct HandlerEntry {
+    pub(crate) bypass: Option<String>,
+    pub(crate) context: HandlerContext,
+}
+
+pub(crate) enum HandlerContext {
+    /// Data-driven: resolve URL from template + origin regex + scrape config.
+    Default { param: DefaultHandlerParam },
+    /// Custom handler function pointer.
+    Custom { handler: CustomHandlerFn },
+}
+
+/// Parameters for the data-driven default handler.
+#[derive(Clone)]
+pub(crate) struct DefaultHandlerParam {
+    pub(crate) url_template: String,
+    pub(crate) origin_regex: Option<Regex>,
+    pub(crate) scraped: Option<ScrapedValue>,
 }
 
 /// Transparent HTTP client — handlers never see bypass/proxy details.
@@ -89,6 +113,9 @@ struct HandlerConfig {
     origin: Option<String>,
     #[serde(default)]
     scrape: Option<ScrapeConfig>,
+    /// Custom handler: "elsevier" or omitted for default data-driven behaviour.
+    #[serde(default)]
+    handler: Option<String>,
 }
 
 /// Scrape configuration: CSS selector with @/@@ extraction + optional regex filter.
@@ -102,25 +129,12 @@ struct ScrapeConfig {
     target: Option<String>,
 }
 
-/// Parsed form of `select`: the CSS selector and what to extract from the matched element.
-#[derive(Debug, Clone)]
-enum ExtractMode {
-    /// Return the element's outer HTML (the default when no @ suffix).
-    Html,
-    /// Return the value of the named attribute.
-    Attr(String),
-    /// Return the element's text content (all text nodes, no tags).
-    Text,
-}
-
 /// Resolved scrape config, ready to use at runtime.
 #[derive(Debug, Clone)]
-struct ScrapedValue {
-    extract: ExtractMode,
-    /// The raw CSS selector (without @/@suffix) to pass to scraper::Selector::parse.
-    selector: Option<String>,
-    /// Optional regex applied to the extracted value.
-    regex: Option<regex::Regex>,
+pub(crate) struct ScrapedValue {
+    pub(crate) extract: ExtractMode,
+    pub(crate) selector: Option<String>,
+    pub(crate) regex: Option<regex::Regex>,
 }
 
 pub struct DownloadService {
@@ -277,7 +291,12 @@ impl DownloadService {
             filename: filename.clone(),
         };
 
-        match default_handler(&client, &ctx, entry).await {
+        let result = match &entry.context {
+            HandlerContext::Custom { handler } => handler(&client, &ctx).await,
+            HandlerContext::Default { param } => default_handler(&client, &ctx, param).await,
+        };
+
+        match result {
             Ok(Some(path)) => {
                 self.rate_limit.insert(host, Instant::now());
                 self.manifest.set(doi, &filename);
@@ -292,9 +311,9 @@ impl DownloadService {
 
 // ── Handler table initialisation ──
 
-fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
+pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
     HANDLER_TABLE.get_or_init(|| {
-        let json_str = include_str!("../resources/default_download_handlers.json");
+        let json_str = include_str!("../resources/download_handlers.json");
         let map: HashMap<String, HandlerConfig> = serde_json::from_str(json_str)
             .expect("Failed to parse default_download_handlers.json");
 
@@ -309,15 +328,22 @@ fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
                     regex: sc.target.as_ref().and_then(|s| Regex::new(s).ok()),
                 }
             });
-            table.insert(
-                hostname,
-                HandlerEntry {
-                    bypass: config.bypass,
-                    url_template: config.url.unwrap_or_default(),
-                    origin_regex: config.origin.and_then(|s| Regex::new(&s).ok()),
-                    scraped,
+            let custom = config
+                .handler
+                .as_deref()
+                .and_then(download_handlers::lookup);
+            let bypass = config.bypass;
+            let context = match custom {
+                Some(handler) => HandlerContext::Custom { handler },
+                None => HandlerContext::Default {
+                    param: DefaultHandlerParam {
+                        url_template: config.url.unwrap_or_default(),
+                        origin_regex: config.origin.and_then(|s| Regex::new(&s).ok()),
+                        scraped,
+                    },
                 },
-            );
+            };
+            table.insert(hostname, HandlerEntry { bypass, context });
         }
         table
     })
@@ -348,17 +374,6 @@ impl DownloadClient {
             cf_use_proxy: false,
         }
     }
-
-    // /// Resolve a DOI to the publisher's actual URL via doi.org redirect.
-    // pub async fn resolve_doi(&self, doi: &str) -> Result<String, String> {
-    //     let url = format!("https://doi.org/{doi}");
-    //     let resp = self.http
-    //         .get(&url)
-    //         .send()
-    //         .await
-    //         .map_err(|e| format!("DOI resolution failed: {e}"))?;
-    //     Ok(resp.url().to_string())
-    // }
 
     /// Set the optional HTTP proxy (called before each use).
     pub fn with_proxy(mut self, proxy_url: Option<&str>) -> Self {
@@ -485,133 +500,9 @@ impl DownloadClient {
     }
 }
 
-// ── default_handler ──
+// ── DownloadClient ──
 
-async fn default_handler(
-    client: &DownloadClient,
-    ctx: &DownloadContext,
-    entry: &HandlerEntry,
-) -> HandlerResult {
-    let final_url = resolve_download_url(client, ctx, entry).await
-        .ok_or_else(|| "failed to resolve download URL".to_string())?;
-
-    log::info!("Download resolved URL for doi={}: {}", ctx.doi, final_url);
-
-    client
-        .download(
-            &final_url, 
-            &ctx.download_dir, 
-            &ctx.filename, 
-            &ctx.doi, 
-            // &[("Referer", &ctx.publisher_url)]
-            &[]
-        )
-        .await
-        .map(Some)
-        .ok_or_else(|| "download failed".to_string())
-}
-
-// ── URL resolution ──
-
-async fn resolve_download_url(
-    client: &DownloadClient,
-    ctx: &DownloadContext,
-    entry: &HandlerEntry,
-) -> Option<String> {
-    let url_template = &entry.url_template;
-    if url_template.is_empty() {
-        return None;
-    }
-
-    let origin_caps: Vec<String> = entry
-        .origin_regex
-        .as_ref()
-        .and_then(|re| re.captures(&ctx.publisher_url))
-        .map(|caps| {
-            (0..caps.len())
-                .map(|i| caps.get(i).map(|m| m.as_str().to_string()).unwrap_or_default())
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let scrape_caps: Vec<String> = match &entry.scraped {
-        Some(sv) => scrape_captures(client, &ctx.publisher_url, sv).await.unwrap_or_default(),
-        None => Vec::new(),
-    };
-
-    let mut result = url_template.replace("{doi}", &ctx.doi);
-    for (i, val) in origin_caps.iter().enumerate() {
-        result = result.replace(&format!("{{origin[{i}]}}"), val);
-    }
-    for (i, val) in scrape_caps.iter().enumerate() {
-        result = result.replace(&format!("{{scrape[{i}]}}"), val);
-    }
-    Some(result)
-}
-
-async fn scrape_captures(
-    client: &DownloadClient,
-    publisher_url: &str,
-    scraped: &ScrapedValue,
-) -> Option<Vec<String>> {
-    let html = client.fetch_page(publisher_url).await?;
-
-    let raw_value = match &scraped.selector {
-        Some(sel) => extract_from_element(&html, sel, &scraped.extract)?,
-        None => html,
-    };
-
-    match &scraped.regex {
-        Some(re) => {
-            let caps = re.captures(&raw_value)?;
-            Some(
-                (0..caps.len())
-                    .map(|i| caps.get(i).map(|m| m.as_str().to_string()).unwrap_or_default())
-                    .collect(),
-            )
-        }
-        None => Some(vec![raw_value]),
-    }
-}
-
-/// Use `scraper` crate to find the first element matching `selector`,
-/// then extract content according to `mode`.
-fn extract_from_element(html: &str, selector: &str, mode: &ExtractMode) -> Option<String> {
-    let document = scraper::Html::parse_document(html);
-    let sel = match scraper::Selector::parse(selector) {
-        Ok(s) => s,
-        Err(e) => {
-            log::warn!("scrape: invalid selector \"{selector}\": {e:?}");
-            return None;
-        }
-    };
-    let element = match document.select(&sel).next() {
-        Some(el) => el,
-        None => {
-            log::warn!("scrape: selector \"{selector}\" matched no elements");
-            return None;
-        }
-    };
-
-    let element_html = element.html();
-    let result = match mode {
-        ExtractMode::Html => Some(element_html.clone()),
-        ExtractMode::Attr(name) => element.attr(name).map(|v| v.to_string()),
-        ExtractMode::Text => {
-            let text: String = element.text().collect();
-            Some(text)
-        }
-    };
-
-    log::info!(
-        "scrape select=\"{selector}\" || element=\"{element_html}\" | extracted=\"{}\"",
-        result.as_deref().unwrap_or("<None>")
-    );
-
-    result
-}
-
-/// Parse the raw `select` field into (css_selector, ExtractMode).
+// ── Parse helpers ──
 fn parse_scrape_select(raw: Option<&str>) -> (Option<&str>, ExtractMode) {
     let raw = match raw {
         Some(r) => r,

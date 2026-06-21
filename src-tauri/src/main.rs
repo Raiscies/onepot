@@ -9,6 +9,7 @@ mod cmd;
 mod cmd_download;
 mod cmd_paper;
 mod config;
+mod download_handlers;
 mod download;
 mod error;
 mod hotkey;

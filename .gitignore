@@ -28,6 +28,5 @@ pnpm-workspace.yaml
 
 papers/*
 
-.cargo
 .vscode/*
 .github/**
