@@ -37,7 +37,7 @@
         "origin": "^https://ieeexplore\\.ieee\\.org/document/(\\d+)",
         "url": "https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber={origin[1]}"
     }, 
-    "febs.onlinelibrary.wiley.com": {
+    "*.onlinelibrary.wiley.com": {
         "bypass": "cloudflare",
         "url": "https://febs.onlinelibrary.wiley.com/doi/pdfdirect/{doi}"
     }

@@ -58,12 +58,15 @@ impl DownloadOutcome {
 /// Global handler table, initialised lazily from bundled JSON.
 static HANDLER_TABLE: OnceCell<HashMap<&'static str, HandlerEntry>> = OnceCell::new();
 
-/// One entry per publisher hostname.
+/// One entry per publisher hostname or wildcard domain suffix.
+/// Keys starting with `.` match any subdomain (e.g. `.onlinelibrary.wiley.com`).
+#[derive(Clone)]
 pub(crate) struct HandlerEntry {
     pub(crate) bypass: Option<String>,
     pub(crate) context: HandlerContext,
 }
 
+#[derive(Clone)]
 pub(crate) enum HandlerContext {
     /// Data-driven: resolve URL from template + origin regex + scrape config.
     Default { param: DefaultHandlerParam },
@@ -270,14 +273,14 @@ impl DownloadService {
             },
         };
 
-        if let Err(e) = self.check_rate_limit(&host) {
-            return DownloadOutcome::Failed { reason: e };
-        }
-
-        let entry = match handler_table().get(host.as_str()) {
+        let entry = match lookup_handler(host.as_str()) {
             Some(e) => e,
             None => return DownloadOutcome::NoHandler { host },
         };
+
+        if let Err(e) = self.check_rate_limit(&host) {
+            return DownloadOutcome::Failed { reason: e };
+        }
 
         let client = DownloadClient::build(entry.bypass.as_deref(), &self.cf_base_url)
             .with_proxy(self.proxy_url.as_deref())
@@ -311,6 +314,23 @@ impl DownloadService {
 
 // ── Handler table initialisation ──
 
+/// Look up a handler entry for the given host.
+/// Tries exact match first, then checks subdomain_match entries.
+fn lookup_handler(host: &str) -> Option<&'static HandlerEntry> {
+    let table = handler_table();
+    // Exact match
+    if let Some(entry) = table.get(host) {
+        return Some(entry);
+    }
+    // Wildcard suffix match: keys starting with "." match any subdomain
+    for (suffix, entry) in table.iter() {
+        if suffix.starts_with('.') && host.ends_with(*suffix) {
+            return Some(entry);
+        }
+    }
+    None
+}
+
 pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
     HANDLER_TABLE.get_or_init(|| {
         let json_str = include_str!("../resources/download_handlers.json");
@@ -319,7 +339,12 @@ pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
 
         let mut table = HashMap::new();
         for (hostname, config) in map {
-            let hostname: &'static str = Box::leak(hostname.into_boxed_str());
+            // "*.domain.com" → stored as ".domain.com" for wildcard suffix matching.
+            let key = match hostname.strip_prefix("*.") {
+                Some(suffix) => format!(".{suffix}"),
+                None => hostname,
+            };
+            let key: &'static str = Box::leak(key.into_boxed_str());
             let scraped = config.scrape.map(|sc| {
                 let (sel, extract) = parse_scrape_select(sc.select.as_deref());
                 ScrapedValue {
@@ -343,7 +368,7 @@ pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
                     },
                 },
             };
-            table.insert(hostname, HandlerEntry { bypass, context });
+            table.insert(key, HandlerEntry { bypass, context });
         }
         table
     })
