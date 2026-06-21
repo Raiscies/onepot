@@ -57,8 +57,9 @@
     -> `https://linkinghub.elsevier.com/retrieve/pii/S152659002400350X` \
     -> `https://www.sciencedirect.com/science/article/pii/S152659002400350X?via%3Dihub` \
     -> Scrape: `a.link-button[href]@href` \
+    -> `https://www.sciencedirect.com/science/article/pii/S152659002400350X/pdfft?md5=4817c30a30cd40d59ef66331ade7463b&pid=1-s2.0-S152659002400350X-main.pdf`
     -> Solves JS Challenge, and follow redirect
-
+    -> `https://pdf.sciencedirectassets.com/272520/1-s2.0-S1526590023X00170/1-s2.0-S152659002400350X/main.pdf?X-Amz-Security-Token=...(VERY LONG)`
 ## TODO
 
 - [ ] CF bypass server support headed mode + captcha checks，pop up explorer window and inform users to verify manually
