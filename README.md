@@ -84,8 +84,8 @@ OnePot 保留了 Pot 的全部功能, 详细说明请参阅 [Pot 官方文档](h
 
 ## 🚧 TODO
 
-- [x] 包括 CCF 等级在内的各类期刊排名显示
-- [ ] 尝试脱离 [AnyStyle](https://github.com/inukshuk/anystyle) / [CloudflareBypasser](https://github.com/sarperavci/CloudflareBypassForScraping) 的外部依赖
+- [-] 包括 CCF 等级在内的各类期刊排名显示 (CCF已完成)
+- [ ] 尝试脱离部分外部依赖
 - [ ] 自动运行 CloudflareBypasser（无需手动启动）
 - [ ] 扩充解析内容范围（关键词, URL等更多形式）
 - [ ] 支持更多学术出版商网站下载
@@ -198,7 +198,7 @@ OnePot 保留了 Pot 的全部功能, 详细说明请参阅 [Pot 官方文档](h
 
 - 绕过并非100%能够成功, 其可用性比较玄学, 你当前的网络与系统环境对解决 Cloudflare 的 anti-bot challenges都有微妙的影响. 一般来说, 最好确保 `challenges.cloudflare.com` 这个域名是直连的. 换句话说就是, 最好不要在绕过服务后面加任何其他的代理. 如果绕过失败, 可以检查一下是不是系统代理把这个域名给转发了. 
 - 如果必须使用网络代理以越过付费墙 (如需要从外部网代理到校园网环境), 考虑在校园网内部环境部署绕过服务而不是在本机部署, 然后配置系统代理转发绕过服务, 并在APP设置中配置绕过服务的主机和端口号. 
-- 这个项目在第一次响应请求时会自动安装大约200M的CamouFox, 响应可能较慢; 同时在每次Cookies Cache过期后, 需要重新解决challenges, 响应也会比较慢.
+- 这个项目在第一次响应请求时会自动安装大约200M的CloakBrowser, 响应可能较慢; 同时在每次Cookies Cache过期后, 需要重新解决challenges, 响应也会比较慢.
 
 <div align="center">
 
