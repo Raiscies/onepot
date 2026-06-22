@@ -207,6 +207,7 @@ Regarding the Cloudflare bypass service:
 - [Pot](https://github.com/pot-app/pot-desktop) — upstream project, providing all core features
 - [AnyStyle](https://github.com/inukshuk/anystyle) — citation parsing engine
 - [Semantic Scholar](https://www.semanticscholar.org/) — academic metadata API
+- [Crossref](https://www.crossref.org/) - academic metadata API
 - [Tauri](https://github.com/tauri-apps/tauri) — Rust-powered cross-platform GUI framework
 - [Cloudflare Bypass](https://github.com/sarperavci/CloudflareBypassForScraping) — Cloudflare bypass tool
 

@@ -210,7 +210,8 @@ OnePot 保留了 Pot 的全部功能, 详细说明请参阅 [Pot 官方文档](h
 
 - [Pot](https://github.com/pot-app/pot-desktop) — 上游项目, 提供全部基础功能
 - [AnyStyle](https://github.com/inukshuk/anystyle) — 文献引用解析引擎
-- [Semantic Scholar](https://www.semanticscholar.org/) — 论文学术元数据 API
+- [Semantic Scholar](https://www.semanticscholar.org/) — 学术论文元数据 API
+- [Crossref](https://www.crossref.org/) - 学术论文元数据 API
 - [Tauri](https://github.com/tauri-apps/tauri) — Rust 驱动的跨平台 GUI 框架
 - [Cloudflare Bypass](https://github.com/sarperavci/CloudflareBypassForScraping) - Cloudflare 绕过工具
 
