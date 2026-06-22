@@ -140,7 +140,7 @@ OnePot retains all of Pot's features. For details, refer to the [Pot official do
     sudo apt-get install ruby-full
     ```
 
-    install anyStyle gem after restarting your terminal
+    install anystyle gem after restarting your terminal
     ```bash
     gem install anystyle
     ```
