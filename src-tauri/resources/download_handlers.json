@@ -9,7 +9,7 @@
     },
     "arxiv.org": {
         "origin": "^https://arxiv\\.org/abs/(.+)$",
-        "url": "https://arxiv\\.org/pdf/{origin[1]}"
+        "url": "https://arxiv.org/pdf/{origin[1]}"
     }, 
     "www.nature.com": {
         "origin": "^(.+)$", 
