@@ -1,5 +1,7 @@
 use crate::paper::{Paper, SearchResult};
 use async_trait::async_trait;
+use std::future::Future;
+use std::pin::Pin;
 
 /// A literature database searcher.
 #[async_trait]
@@ -28,19 +30,15 @@ impl SearchService {
         self.searchers.push(searcher);
     }
 
-    /// Run all searchers in parallel, returning results for those that found a match.
-    pub async fn search_all(&self, paper: &Paper) -> Vec<SearchResult> {
-        let futures: Vec<_> = self
-            .searchers
+    /// Return a Vec of boxed futures so the caller can process results as they
+    /// complete (e.g. via `FuturesUnordered`).
+    pub fn search_futures<'a>(
+        &'a self,
+        paper: &'a Paper,
+    ) -> Vec<Pin<Box<dyn Future<Output = Option<SearchResult>> + Send + 'a>>> {
+        self.searchers
             .iter()
-            .map(|s| s.search(paper))
-            .collect();
-
-        let results = futures::future::join_all(futures).await;
-
-        results
-            .into_iter()
-            .flatten()
+            .map(|s| Box::pin(s.search(paper)) as Pin<Box<dyn Future<Output = Option<SearchResult>> + Send + 'a>>)
             .collect()
     }
 }

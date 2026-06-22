@@ -247,7 +247,7 @@ impl SemanticScholarSearcher {
         return Some(SearchResult {
                 paper: matched,
                 source: self.name().to_string(),
-                score: 0.0,
+                score: 0.8,
                 download_url,
                 available: true,
                 error: None,

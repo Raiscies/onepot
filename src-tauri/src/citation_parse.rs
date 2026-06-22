@@ -78,13 +78,15 @@ pub fn parse_single(
 ) -> ParseResult {
     let result = do_parse(citation);
     match result {
-        Ok(paper) => ParseResult {
-            paper,
-            index,
-            citation_index: citation_index.map(|s| s.to_string()),
-            raw_citation: Some(citation.to_string()),
-            error_msg: None,
-        },
+        Ok(mut paper) => {
+            paper.raw_citation = citation.to_string();
+            ParseResult {
+                paper,
+                index,
+                citation_index: citation_index.map(|s| s.to_string()),
+                error_msg: None,
+            }
+        }
         Err(err_msg) => ParseResult::error(index, citation, &err_msg),
     }
 }

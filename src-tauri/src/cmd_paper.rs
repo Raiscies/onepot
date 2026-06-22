@@ -2,6 +2,7 @@ use crate::citation_parse::{parse_single, set_ruby_bin, set_runner_path, split_c
 use crate::paper::{ParseResult, PaperStatus};
 use crate::paper_search::SearchService;
 use crate::CitationResultsWrapper;
+use futures::stream::{FuturesUnordered, StreamExt};
 use log::info;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
@@ -64,9 +65,7 @@ fn spawn_tasks(
         .iter()
         .enumerate()
         .map(|(i, (idx, raw))| {
-            let mut p = ParseResult::placeholder(i, idx.as_deref());
-            p.raw_citation = Some(raw.clone());
-            p
+            ParseResult::placeholder(i, idx.as_deref(), raw)
         })
         .collect();
 
@@ -123,16 +122,25 @@ async fn run_stages(
     write_shared_result(app, index, &result);
     info!("citation_search #{search_id}: paper #{index} parsed");
 
-    // Stage 2: enrich (only if parse produced usable metadata)
+    // Stage 2: enrich — stream results as they arrive from each searcher
     if result.paper.has_doi() || result.paper.title.is_some() {
         if is_cancelled(search_id) { return; }
         let search_service = SEARCH_SERVICE.get().unwrap();
-        if let Some(best) = search_service.search_all(&result.paper).await.first() {
-            result.apply_search_result(&best.paper);
+
+        // Clone the paper for the futures so we can mutably borrow `result` later.
+        let paper_clone = result.paper.clone();
+        let futures_vec = search_service.search_futures(&paper_clone);
+        let mut stream = FuturesUnordered::from_iter(futures_vec);
+
+        while let Some(search_result) = stream.next().await {
+            if is_cancelled(search_id) { return; }
+            if let Some(sr) = search_result {
+                result.apply_single_result(&sr);
+                emit_update(window, index, "enriched", &result);
+                write_shared_result(app, index, &result);
+            }
         }
-        if is_cancelled(search_id) { return; }
-        emit_update(window, index, "enriched", &result);
-        write_shared_result(app, index, &result);
+
         info!("citation_search #{search_id}: paper #{index} enriched");
     }
 }

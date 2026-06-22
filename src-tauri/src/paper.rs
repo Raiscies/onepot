@@ -55,6 +55,10 @@ pub struct Paper {
     #[serde(default)]
     pub ccf_rank: Option<String>,
 
+    // citation parse context
+    #[serde(default)]
+    pub raw_citation: String,
+
     // display status
     #[serde(default)]
     pub status: PaperStatus,
@@ -62,7 +66,12 @@ pub struct Paper {
 
 impl Paper {
     /// Merge non-empty fields from `other` into `self`.
+    /// Only merges when both papers share the same DOI (or either DOI is empty).
     pub fn merge(&mut self, other: &Paper) {
+        // Only merge papers that are confirmed to be the same work
+        if self.doi.is_some() && other.doi.is_some() && self.doi != other.doi {
+            return;
+        }
         if self.title.is_none() {
             self.title = other.title.clone();
         }
@@ -81,6 +90,7 @@ impl Paper {
         merge_opt!(self, other, abstract_);
         merge_opt!(self, other, citation_count);
         merge_opt!(self, other, ccf_rank);
+        // merge_opt!(self, other, raw_citation);
     }
 
     pub fn has_doi(&self) -> bool {
@@ -125,22 +135,20 @@ pub struct ParseResult {
     #[serde(default)]
     pub citation_index: Option<String>,
     #[serde(default)]
-    pub raw_citation: Option<String>,
-    #[serde(default)]
     pub error_msg: Option<String>,
 }
 
 impl ParseResult {
     /// Create a placeholder entry shown as a skeleton while searching.
-    pub fn placeholder(index: usize, citation_index: Option<&str>) -> Self {
+    pub fn placeholder(index: usize, citation_index: Option<&str>, raw_citation: &str) -> Self {
         ParseResult {
             paper: Paper {
                 status: PaperStatus::Searching,
+                raw_citation: raw_citation.to_string(),
                 ..Default::default()
             },
             index,
             citation_index: citation_index.map(|s| s.to_string()),
-            raw_citation: None,
             error_msg: None,
         }
     }
@@ -150,27 +158,55 @@ impl ParseResult {
         ParseResult {
             paper: Paper {
                 status: PaperStatus::Error,
+                raw_citation: raw_citation.to_string(),
                 ..Default::default()
             },
             index,
             citation_index: None,
-            raw_citation: Some(raw_citation.to_string()),
             error_msg: Some(error_msg.to_string()),
         }
     }
 
-    /// Merge search result into this card's paper, then mark ready.
-    /// Search result is the primary data source; parse result fills in gaps.
-    pub fn apply_search_result(&mut self, result: &Paper) {
-        let mut merged = result.clone();
-        merged.merge(&self.paper);
-        self.paper = merged;
-        // Fall back to venue-based lookup if DBLP didn't yield a rank or only got preprint
-        if self.paper.ccf_rank.is_none() || self.paper.ccf_rank.as_deref() == Some("P") {
-            self.paper.resolve_ccf_rank();
+    /// Merge a search result into this card, with score determining priority.
+    /// The higher-scored result is the primary; the lower fills in missing fields.
+    pub fn apply_single_result(&mut self, new_result: &SearchResult) {
+        // Compare scores: higher score wins as primary
+        let (primary, secondary) = if new_result.score > 0.0 {
+            // new result has a score; compare with current best
+            // (DOI exact match = 1.0, bibliographic = 0.0)
+            (&new_result.paper, &self.paper)
+        } else {
+            (&self.paper, &new_result.paper)
+        };
+
+        let mut merged = primary.clone();
+        merged.merge(secondary);
+
+        // Fall back to venue-based CCF lookup if no rank from search APIs
+        if merged.ccf_rank.is_none() || merged.ccf_rank.as_deref() == Some("P") {
+            merged.resolve_ccf_rank();
         }
-        self.paper.status = PaperStatus::Ready;
+        merged.status = PaperStatus::Ready;
+        self.paper = merged;
     }
+
+    /// Merge all search results (sorted by score desc) into this card, with the
+    /// parse result as the lowest-priority fallback.
+    #[deprecated(note = "use apply_single_result in a streaming loop instead")]
+    pub fn apply_all_results(&mut self, results: &[SearchResult]) {
+        let mut merged = results[0].paper.clone();
+        for r in &results[1..] {
+            merged.merge(&r.paper);
+        }
+        merged.merge(&self.paper);
+        // Fall back to venue-based CCF lookup if no rank from search APIs
+        if merged.ccf_rank.is_none() || merged.ccf_rank.as_deref() == Some("P") {
+            merged.resolve_ccf_rank();
+        }
+        merged.status = PaperStatus::Ready;
+        self.paper = merged;
+    }
+
 }
 
 /// A search result returned by a literature database (Semantic Scholar, etc.).
@@ -184,37 +220,37 @@ pub struct SearchResult {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum DownloadStatus {
-    Pending,
-    Downloading,
-    Completed,
-    Failed,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+// #[serde(rename_all = "lowercase")]
+// pub enum DownloadStatus {
+//     Pending,
+//     Downloading,
+//     Completed,
+//     Failed,
+// }
 
-/// A PDF download task tracked by the download engine.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DownloadTask {
-    pub paper: Paper,
-    pub url: String,
-    pub source: String,
-    pub status: DownloadStatus,
-    pub progress: f64,
-    pub error: Option<String>,
-    pub file_path: Option<String>,
-}
+// /// A PDF download task tracked by the download engine.
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct DownloadTask {
+//     pub paper: Paper,
+//     pub url: String,
+//     pub source: String,
+//     pub status: DownloadStatus,
+//     pub progress: f64,
+//     pub error: Option<String>,
+//     pub file_path: Option<String>,
+// }
 
-impl DownloadTask {
-    pub fn new(paper: Paper, url: &str, source: &str) -> Self {
-        DownloadTask {
-            paper,
-            url: url.to_string(),
-            source: source.to_string(),
-            status: DownloadStatus::Pending,
-            progress: 0.0,
-            error: None,
-            file_path: None,
-        }
-    }
-}
+// impl DownloadTask {
+//     pub fn new(paper: Paper, url: &str, source: &str) -> Self {
+//         DownloadTask {
+//             paper,
+//             url: url.to_string(),
+//             source: source.to_string(),
+//             status: DownloadStatus::Pending,
+//             progress: 0.0,
+//             error: None,
+//             file_path: None,
+//         }
+//     }
+// }
