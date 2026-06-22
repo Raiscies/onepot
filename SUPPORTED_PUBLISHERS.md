@@ -9,6 +9,7 @@
 | Dagstuhl | `drops.dagstuhl.de` | None | scrapes from page | ✅ |
 | IEEE | `ieeexplore.ieee.org` | None | `/stampPDF/getPDF.jsp?arnumber={id}` | ✅ |
 | Nature | `www.nature.com` | None | `/articles/{id}.pdf` | ✅ |
+| Science | `www.science.org` | Cloudflare | `/doi/pdf/{doi}?download=true` | ✅ | 
 | ArXiv | `arxiv.org` | None | `/pdf/{id}` | ✅ |
 | Wiley | `*.onlinelibrary.wiley.com` | Cloudflare | `/doi/pdfdirect/{doi}` | ✅ |
 | Elsevier | `linkinghub.elsevier.com` | Cloudflare | scrapes from page, solves JS challenge | ❌ |
@@ -27,6 +28,8 @@
 
 - **www.nature.com**: `10.1038/s41467-018-04978-z` ✅
 
+- **www.science.org**: `10.1126/science.aeg8744` ✅
+
 - **epubs.siam.org**: `10.1137/0136016` ✅ \
     -> `https://epubs.siam.org/doi/10.1137/0136016` \
     -> `https://epubs.siam.org/doi/epdf/10.1137/0136016` \
@@ -39,8 +42,6 @@
 - **journals.aps.org**: `10.1103/PHYSREVE.76.056709` ✅ \
     -> `https://journals.aps.org/pre/abstract/10.1103/PhysRevE.76.056709` \
     -> `https://journals.aps.org/pre/pdf/10.1103/PhysRevE.76.056709`
-
-
 
 - **\*.onlinelibrary.wiley.com**: `10.1016/j.febslet.2009.12.039` \
     -> `https://febs.onlinelibrary.wiley.com/doi/10.1016/j.febslet.2009.12.039` \
@@ -57,9 +58,10 @@
     -> `https://linkinghub.elsevier.com/retrieve/pii/S152659002400350X` \
     -> `https://www.sciencedirect.com/science/article/pii/S152659002400350X?via%3Dihub` \
     -> Scrape: `a.link-button[href]@href` \
-    -> `https://www.sciencedirect.com/science/article/pii/S152659002400350X/pdfft?md5=4817c30a30cd40d59ef66331ade7463b&pid=1-s2.0-S152659002400350X-main.pdf`
-    -> Solves JS Challenge, and follow redirect
+    -> `https://www.sciencedirect.com/science/article/pii/S152659002400350X/pdfft?md5=4817c30a30cd40d59ef66331ade7463b&pid=1-s2.0-S152659002400350X-main.pdf` \
+    -> Solves JS Challenge, and follow redirect \
     -> `https://pdf.sciencedirectassets.com/272520/1-s2.0-S1526590023X00170/1-s2.0-S152659002400350X/main.pdf?X-Amz-Security-Token=...(VERY LONG)`
+    
 ## TODO
 
 - [ ] CF bypass server support headed mode + captcha checks，pop up explorer window and inform users to verify manually

@@ -131,16 +131,17 @@ OnePot retains all of Pot's features. For details, refer to the [Pot official do
 
     ```bash
     # Windows
-    winget install RubyInstallerTeam.RubyWithDevKit.4.0.5
-    # Restart your terminal, then:
-    gem install anystyle
+    winget install RubyInstallerTeam.Ruby.4.0.5
 
     # macOS
     brew install ruby
-    gem install anystyle
 
     # Linux
-    sudo apt-get install ruby ruby-dev
+    sudo apt-get install ruby-full
+    ```
+
+    install anyStyle gem after restarting your terminal
+    ```bash
     gem install anystyle
     ```
 

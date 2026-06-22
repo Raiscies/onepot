@@ -40,5 +40,9 @@
     "*.onlinelibrary.wiley.com": {
         "bypass": "cloudflare",
         "url": "https://febs.onlinelibrary.wiley.com/doi/pdfdirect/{doi}"
+    }, 
+    "www.science.org": {
+        "bypass": "cloudflare",
+        "url": "https://www.science.org/doi/pdf/{doi}?download=true"
     }
 }

@@ -137,7 +137,7 @@ OnePot 保留了 Pot 的全部功能, 详细说明请参阅 [Pot 官方文档](h
 
     ```bash
     # Windows
-    winget install RubyInstallerTeam.RubyWithDevKit.4.0.5
+    winget install RubyInstallerTeam.Ruby.4.0.5
     # 重启终端后
     gem install anystyle
 
@@ -146,7 +146,7 @@ OnePot 保留了 Pot 的全部功能, 详细说明请参阅 [Pot 官方文档](h
     gem install anystyle
 
     # Linux
-    sudo apt-get install ruby ruby-dev
+    sudo apt-get install ruby-full
     gem install anystyle
     ```
 
