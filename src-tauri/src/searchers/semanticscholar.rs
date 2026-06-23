@@ -272,6 +272,9 @@ impl Searcher for SemanticScholarSearcher {
                 return Some(result);
             }
         }
-        self.search_by_title(paper.title.as_ref()?).await
+        if let Some(title) = &paper.title {
+            return self.search_by_title(title).await;
+        }
+        None
     }
 }

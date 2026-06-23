@@ -9,8 +9,9 @@ use std::pin::Pin;
 use std::time::Instant;
 use tauri::Manager;
 
-use crate::download_handlers;
+use crate::download_handlers::{self};
 use crate::download_handlers::default::{default_handler, ExtractMode};
+use crate::download_handlers::fallback::{fallback_handler};
 
 /// Signature of a custom handler function.
 pub type CustomHandlerFn = for<'a> fn(
@@ -34,7 +35,6 @@ pub type HandlerResult = Result<Option<PathBuf>, String>;
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum DownloadOutcome {
     Success { path: String },
-    NoHandler { host: String },
     Failed { reason: String },
 }
 
@@ -42,7 +42,6 @@ impl DownloadOutcome {
     pub fn status(&self) -> &'static str {
         match self {
             DownloadOutcome::Success { .. } => "success",
-            DownloadOutcome::NoHandler { .. } => "no_handler",
             DownloadOutcome::Failed { .. } => "failed",
         }
     }
@@ -58,11 +57,17 @@ impl DownloadOutcome {
 /// Global handler table, initialised lazily from bundled JSON.
 static HANDLER_TABLE: OnceCell<HashMap<&'static str, HandlerEntry>> = OnceCell::new();
 
+#[derive(Clone, Copy)]
+pub(crate) enum BypassStrategy {
+    Direct,
+    CloudflareBypass,
+}
+
 /// One entry per publisher hostname or wildcard domain suffix.
 /// Keys starting with `.` match any subdomain (e.g. `.onlinelibrary.wiley.com`).
 #[derive(Clone)]
 pub(crate) struct HandlerEntry {
-    pub(crate) bypass: Option<String>,
+    pub(crate) bypass: BypassStrategy,
     pub(crate) context: HandlerContext,
 }
 
@@ -72,6 +77,7 @@ pub(crate) enum HandlerContext {
     Default { param: DefaultHandlerParam },
     /// Custom handler function pointer.
     Custom { handler: CustomHandlerFn },
+    None,
 }
 
 /// Parameters for the data-driven default handler.
@@ -91,10 +97,7 @@ pub struct DownloadClient {
     cf_use_proxy: bool,
 }
 
-enum BypassStrategy {
-    Direct,
-    CloudflareBypass,
-}
+
 
 /// Simplified context — no proxy / CF fields.
 #[derive(Clone)]
@@ -273,18 +276,9 @@ impl DownloadService {
             },
         };
 
-        let entry = match lookup_handler(host.as_str()) {
-            Some(e) => e,
-            None => return DownloadOutcome::NoHandler { host },
-        };
-
         if let Err(e) = self.check_rate_limit(&host) {
             return DownloadOutcome::Failed { reason: e };
         }
-
-        let client = DownloadClient::build(entry.bypass.as_deref(), &self.cf_base_url)
-            .with_proxy(self.proxy_url.as_deref())
-            .with_cf_use_proxy(self.cf_use_proxy);
 
         let filename = build_filename(&self.naming_pattern, meta);
         let ctx = DownloadContext {
@@ -294,9 +288,17 @@ impl DownloadService {
             filename: filename.clone(),
         };
 
+        let entry = lookup_handler(host.as_str());
+
+        let client = DownloadClient::build(entry.bypass, &self.cf_base_url)
+            .with_proxy(self.proxy_url.as_deref())
+            .with_cf_use_proxy(self.cf_use_proxy);
+
+
         let result = match &entry.context {
             HandlerContext::Custom { handler } => handler(&client, &ctx).await,
             HandlerContext::Default { param } => default_handler(&client, &ctx, param).await,
+            HandlerContext::None => fallback_handler(&client, &ctx).await,
         };
 
         match result {
@@ -316,19 +318,20 @@ impl DownloadService {
 
 /// Look up a handler entry for the given host.
 /// Tries exact match first, then checks subdomain_match entries.
-fn lookup_handler(host: &str) -> Option<&'static HandlerEntry> {
+fn lookup_handler(host: &str) -> &'static HandlerEntry {
     let table = handler_table();
     // Exact match
     if let Some(entry) = table.get(host) {
-        return Some(entry);
+        return entry;
     }
     // Wildcard suffix match: keys starting with "." match any subdomain
     for (suffix, entry) in table.iter() {
         if suffix.starts_with('.') && host.ends_with(*suffix) {
-            return Some(entry);
+            return entry;
         }
     }
-    None
+    // fallback
+    table.get("").unwrap()
 }
 
 pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
@@ -338,6 +341,14 @@ pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
             .expect("Failed to parse default_download_handlers.json");
 
         let mut table = HashMap::new();
+        // Built-in fallback entry for unrecognised hosts.
+        table.insert(
+            "",
+            HandlerEntry {
+                bypass: BypassStrategy::Direct,
+                context: HandlerContext::None,
+            },
+        );
         for (hostname, config) in map {
             // "*.domain.com" → stored as ".domain.com" for wildcard suffix matching.
             let key = match hostname.strip_prefix("*.") {
@@ -357,7 +368,13 @@ pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
                 .handler
                 .as_deref()
                 .and_then(download_handlers::lookup);
-            let bypass = config.bypass;
+            // let bypass = config.bypass;
+
+            let bypass: BypassStrategy = match config.bypass.as_deref() {
+                Some("cloudflare") => BypassStrategy::CloudflareBypass,
+                _ => BypassStrategy::Direct,
+            };
+
             let context = match custom {
                 Some(handler) => HandlerContext::Custom { handler },
                 None => HandlerContext::Default {
@@ -378,11 +395,11 @@ pub(crate) fn handler_table() -> &'static HashMap<&'static str, HandlerEntry> {
 
 impl DownloadClient {
     /// Build a client for a specific bypass strategy.
-    pub fn build(bypass: Option<&str>, base_url: &str) -> Self {
-        let strategy = match bypass {
-            Some("cloudflare") => BypassStrategy::CloudflareBypass,
-            _ => BypassStrategy::Direct,
-        };
+    pub fn build(strategy: BypassStrategy, base_url: &str) -> Self {
+        // let strategy = match bypass {
+        //     Some("cloudflare") => BypassStrategy::CloudflareBypass,
+        //     _ => BypassStrategy::Direct,
+        // };
         let http = reqwest::Client::builder()
             .no_proxy()
             .cookie_store(true)
@@ -398,6 +415,20 @@ impl DownloadClient {
             proxy_url: None,
             cf_use_proxy: false,
         }
+    }
+
+    /// Check whether a URL points directly to a PDF via a HEAD request.
+    /// Returns true if the Content-Type header is `application/pdf`.
+    pub async fn is_direct_pdf(&self, url: &str) -> bool {
+        let resp = match self.http.head(url).send().await {
+            Ok(r) => r,
+            Err(_) => return false,
+        };
+        resp.headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .map(|ct| ct.contains("application/pdf"))
+            .unwrap_or(false)
     }
 
     /// Set the optional HTTP proxy (called before each use).

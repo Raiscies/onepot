@@ -14,6 +14,7 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
 pub(crate) mod default;
+pub(crate) mod fallback;
 mod elsevier;
 
 pub static HANDLER_REGISTRY: Lazy<HashMap<&'static str, CustomHandlerFn>> = Lazy::new(|| {
