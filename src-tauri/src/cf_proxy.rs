@@ -3,12 +3,6 @@
 use serde::Deserialize;
 use tauri::Manager;
 
-/// Health check response from /cache/stats
-#[derive(Debug, Deserialize)]
-pub struct CacheStats {
-    // The exact fields vary; we only care that the endpoint responds with valid JSON.
-}
-
 /// Normalize a CF host config value into a base URL.
 /// Accepts: "127.0.0.1", "127.0.0.1:8000", "http://127.0.0.1:8000", "https://proxy.example.com"
 /// Falls back to "http://127.0.0.1:8000" if empty.

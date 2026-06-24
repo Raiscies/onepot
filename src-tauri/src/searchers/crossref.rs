@@ -166,6 +166,7 @@ impl CrossrefSearcher {
     /// Crossref's rate limits are more generous when a `mailto` parameter is
     /// present.  Use a contact address that you monitor — Crossref may reach
     /// out if your usage is excessive.
+    #[allow(unused)]
     pub fn with_email(mut self, email: impl Into<String>) -> Self {
         self.email = Some(email.into());
         self

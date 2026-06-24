@@ -34,7 +34,7 @@ use cmd_paper::*;
 use config::*;
 use hotkey::*;
 use lang_detect::*;
-use log::{info, LevelFilter};
+use log::{info};
 use once_cell::sync::OnceCell;
 use screenshot::screenshot;
 use server::*;

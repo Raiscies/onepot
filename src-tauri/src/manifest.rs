@@ -39,6 +39,7 @@ impl DownloadManifest {
     }
 
     /// Look up a DOI and return the stored filename if the file exists.
+    #[allow(unused)]
     pub fn get(&self, doi: &str, storage_dir: &Path) -> Option<PathBuf> {
         let fname = self.records.get(doi)?;
         let path = storage_dir.join(fname);

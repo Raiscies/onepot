@@ -26,6 +26,7 @@ impl SearchService {
         }
     }
 
+    #[allow(unused)]
     pub fn add(&mut self, searcher: Box<dyn Searcher>) {
         self.searchers.push(searcher);
     }
