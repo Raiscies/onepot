@@ -22,13 +22,15 @@ jobs:
                   sudo apt-get install -y git
             - id: outputstep
               run: |
-                  echo "VERSION=$(git describe --tags | sed -e 's/^v//' -e 's/-[0-9]*-.*//g')" >> "$GITHUB_OUTPUT"
+                  V=$(git describe --tags 2>/dev/null | sed -e 's/^v//' -e 's/-[0-9]*-.*//g')
+                  echo "VERSION=${V:-0.1.0}" >> "$GITHUB_OUTPUT"
             - name: Change Version
               run: |
-                  V=$(git describe --tags | sed -e 's/^v//' -e 's/-[0-9]*-.*//g')
+                  V=$(git describe --tags 2>/dev/null | sed -e 's/^v//' -e 's/-[0-9]*-.*//g')
+                  V=${V:-0.1.0}
                   sed -i "s/\"version\":.*/\"version\": \"$V\",/g" package.json
                   sed -i "s/\"version\":.*/\"version\": \"$V\"/g" src-tauri/tauri.conf.json
-                  sed -i "s/version = \".*\"/version = \"$V\"/g" src-tauri/Cargo.toml
+                  sed -i "0,/^version = \"[^\"]*\"/s//version = \"$V\"/" src-tauri/Cargo.toml
                   echo $V
 
             - name: Upload source artifact
