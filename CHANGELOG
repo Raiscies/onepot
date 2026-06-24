@@ -1,10 +1,7 @@
-## 3.0.7 (2025-5-10)
+## 0.1.0 - pot3.0.7(upstream) (2026-6-24)
 
-### New feature:
+### New features
 
--   signed macOS app
+- First Packaging: Paper citation searching and download with multi-source enrichment
 
-### Bugs fixed:
 
--   fix screenshot on macOS
--   rm tray click event on macOS

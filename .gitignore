@@ -29,4 +29,4 @@ pnpm-workspace.yaml
 papers/*
 
 .vscode/*
-.github/**
+.github/instructions/*
