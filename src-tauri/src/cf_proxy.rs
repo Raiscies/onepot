@@ -1,6 +1,5 @@
 /// CloudflareBypass proxy client.
 /// Communicates with the external CF bypass Python service via HTTP.
-use serde::Deserialize;
 use tauri::Manager;
 
 /// Normalize a CF host config value into a base URL.
