@@ -6,11 +6,11 @@
 | Springer | `link.springer.com` | Cloudflare | `/content/pdf/{doi}.pdf` | ✅ |
 | SIAM | `epubs.siam.org` | Cloudflare | `/doi/pdf/{doi}?download=true` | ✅ |
 | APS | `journals.aps.org` | Cloudflare |`/pre/pdf/{doi}` | ✅ |
-| Dagstuhl | `drops.dagstuhl.de` | None | scrapes from page | ✅ |
-| IEEE | `ieeexplore.ieee.org` | None | `/stampPDF/getPDF.jsp?arnumber={id}` | ✅ |
-| Nature | `www.nature.com` | None | `/articles/{id}.pdf` | ✅ |
+| Dagstuhl | `drops.dagstuhl.de` | - | scrapes from page | ✅ |
+| IEEE | `ieeexplore.ieee.org` | - | `/stampPDF/getPDF.jsp?arnumber={id}` | ✅ |
+| Nature | `www.nature.com` | - | `/articles/{id}.pdf` | ✅ |
 | Science | `www.science.org` | Cloudflare | `/doi/pdf/{doi}?download=true` | ✅ | 
-| ArXiv | `arxiv.org` | None | `/pdf/{id}` | ✅ |
+| ArXiv | `arxiv.org` | - | `/pdf/{id}` | ✅ |
 | Wiley | `*.onlinelibrary.wiley.com` | Cloudflare | `/doi/pdfdirect/{doi}` | ✅ |
 | Elsevier | `linkinghub.elsevier.com` | Cloudflare | scrapes from page, solves JS challenge | ❌ |
 | Sage | `journals.sagepub.com` | Cloudflare | tokenized, needs headless | ❌ |
