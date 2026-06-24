@@ -22,13 +22,14 @@ jobs:
                   sudo apt-get install -y git
             - id: outputstep
               run: |
-                  echo "VERSION=$(git describe --tags | sed 's/-[0-9]*-.*//g')" >> "$GITHUB_OUTPUT"
+                  echo "VERSION=$(git describe --tags | sed -e 's/^v//' -e 's/-[0-9]*-.*//g')" >> "$GITHUB_OUTPUT"
             - name: Change Version
               run: |
-                  sed -i "s/\"version\":.*/\"version\": \"$(git describe --tags | sed 's/-[0-9]*-.*//g')\",/g" package.json
-                  sed -i "s/\"version\":.*/\"version\": \"$(git describe --tags | sed 's/-[0-9]*-.*//g')\"/g" src-tauri/tauri.conf.json
-                  sed -i "s/version = \".*\"/version = \"$(git describe --tags | sed 's/-[0-9]*-.*//g')\"/g" src-tauri/Cargo.toml
-                  echo $(git describe --tags | sed 's/-[0-9]*-.*//g')
+                  V=$(git describe --tags | sed -e 's/^v//' -e 's/-[0-9]*-.*//g')
+                  sed -i "s/\"version\":.*/\"version\": \"$V\",/g" package.json
+                  sed -i "s/\"version\":.*/\"version\": \"$V\"/g" src-tauri/tauri.conf.json
+                  sed -i "s/version = \".*\"/version = \"$V\"/g" src-tauri/Cargo.toml
+                  echo $V
 
             - name: Upload source artifact
               uses: actions/upload-artifact@v4
