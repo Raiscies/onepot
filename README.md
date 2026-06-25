@@ -137,7 +137,7 @@ OnePot 保留了 Pot 的全部功能, 详细说明请参阅 [Pot 官方文档](h
 
     ```bash
     # Windows
-    winget install RubyInstallerTeam.Ruby.4.0.5
+    winget install -e --id RubyInstallerTeam.Ruby.4.0
     # 重启终端后
     gem install anystyle
 

@@ -131,7 +131,7 @@ OnePot retains all of Pot's features. For details, refer to the [Pot official do
 
     ```bash
     # Windows
-    winget install RubyInstallerTeam.Ruby.4.0.5
+    winget install -e --id RubyInstallerTeam.Ruby.4.0
 
     # macOS
     brew install ruby
